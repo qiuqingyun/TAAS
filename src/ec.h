@@ -18,7 +18,7 @@ BIGNUM *BN_rand(int bits)
 class W1
 {
     EC_GROUP *curve;
-    EC_POINT *G0, *G1, *G2, *H0, *Ga, *Ha;
+    EC_POINT *G0, *G1, *G2, *H0, *Ga, *Ha, *pkA;
     BIGNUM *order;
 
 public:
@@ -44,13 +44,14 @@ public:
         order = BN_new();
         EC_GROUP_get_order(curve, order, ctx);
 
-        // 初始化 G0,G1,G2,H0,Ga,Ha
+        // 初始化 G0,G1,G2,H0,Ga,Ha,pkA
         G0 = EC_POINT_new(curve);
         G1 = EC_POINT_new(curve);
         G2 = EC_POINT_new(curve);
         H0 = EC_POINT_new(curve);
         Ga = EC_POINT_new(curve);
         Ha = EC_POINT_new(curve);
+        pkA = EC_POINT_new(curve);
 
         // 分别生成随机数计算G0,G1,G2,H0,Ga,Ha
         BIGNUM *r1 = BN_rand(256);
@@ -88,6 +89,8 @@ public:
         str += EC_POINT_point2hex(curve, H0, POINT_CONVERSION_COMPRESSED, ctx);
         str += EC_POINT_point2hex(curve, Ga, POINT_CONVERSION_COMPRESSED, ctx);
         str += EC_POINT_point2hex(curve, Ha, POINT_CONVERSION_COMPRESSED, ctx);
+        str += BN_bn2hex(order);
+        str += EC_POINT_point2hex(curve, pkA, POINT_CONVERSION_COMPRESSED, ctx);
         BN_CTX_end(ctx);
         return str;
     }
@@ -99,6 +102,8 @@ public:
     EC_POINT *get_H0() const { return H0; }
     EC_POINT *get_Ga() const { return Ga; }
     EC_POINT *get_Ha() const { return Ha; }
+    void set_pkA(EC_POINT *pkA) { EC_POINT_copy(this->pkA, pkA); }
+    EC_POINT *get_pkA() const { return pkA; }
     BIGNUM *get_order() const { return order; }
 };
 

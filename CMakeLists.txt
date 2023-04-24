@@ -3,6 +3,7 @@ cmake_minimum_required (VERSION 3.14)
 project (verify)
 
 SET(CMAKE_CXX_FLAGS "-std=c++17")
+SET(CMAKE_CXX_FLAGS_DEBUG "-g -O0 -Wall -Wextra -Wno-unused-parameter -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-unused-result")
 SET(CMAKE_BUILD_TYPE "Debug")
 #SET(CMAKE_BUILD_TYPE "Release")
 
