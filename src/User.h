@@ -24,6 +24,18 @@ public:
     // 构造函数，接收W1，ui和ri并保存
     User(W1 *w1, BIGNUM *ui, BIGNUM *ri) : w1(w1), ui(ui), ri(ri) {}
 
+    // 析构函数，释放内存
+    ~User()
+    {
+        BN_free(ui);
+        BN_free(ri);
+        BN_free(vi);
+        EC_POINT_free(Ui);
+        for (int i = 0; i < 2; i++)
+            EC_POINT_free(Vi[i]);
+        delete[] Vi;
+    }
+
     // 计算Ui和Vi
     void compute(BN_CTX *ctx)
     {
@@ -49,8 +61,11 @@ public:
         // V2i = ri'*Ha
         Vi[1] = EC_POINT_new(w1->get_curve());
         EC_POINT_mul(w1->get_curve(), Vi[1], NULL, w1->get_Ha(), ri_, ctx);
-
         BN_CTX_end(ctx);
+        BN_free(ri_);
+        EC_POINT_free(temp1);
+        EC_POINT_free(temp2);
+        EC_POINT_free(temp3);
     }
 
     // 获取证据的字节数，包括Ui, Vi

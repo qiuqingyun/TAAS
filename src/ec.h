@@ -1,5 +1,6 @@
 #pragma once
 #include <iostream>
+#include <sstream>
 #include <openssl/evp.h>
 #include <openssl/ec.h>
 #include <openssl/rand.h>
@@ -78,21 +79,51 @@ public:
         BN_CTX_end(ctx);
     }
 
-    // 将W1的参数转换为字符串
+    // 释放内存
+    ~W1()
+    {
+        EC_POINT_free(G0);
+        EC_POINT_free(G1);
+        EC_POINT_free(G2);
+        EC_POINT_free(H0);
+        EC_POINT_free(Ga);
+        EC_POINT_free(Ha);
+        EC_POINT_free(pkA);
+        BN_free(order);
+        EC_GROUP_free(curve);
+    }
+
+    // 将W1的参数转换为字符串，并清理内存
     std::string to_string(BN_CTX *ctx)
     {
         BN_CTX_start(ctx);
-        std::string str;
-        str += EC_POINT_point2hex(curve, G0, POINT_CONVERSION_COMPRESSED, ctx);
-        str += EC_POINT_point2hex(curve, G1, POINT_CONVERSION_COMPRESSED, ctx);
-        str += EC_POINT_point2hex(curve, G2, POINT_CONVERSION_COMPRESSED, ctx);
-        str += EC_POINT_point2hex(curve, H0, POINT_CONVERSION_COMPRESSED, ctx);
-        str += EC_POINT_point2hex(curve, Ga, POINT_CONVERSION_COMPRESSED, ctx);
-        str += EC_POINT_point2hex(curve, Ha, POINT_CONVERSION_COMPRESSED, ctx);
-        str += BN_bn2hex(order);
-        str += EC_POINT_point2hex(curve, pkA, POINT_CONVERSION_COMPRESSED, ctx);
+        std::stringstream ss;
+        char *tmp = EC_POINT_point2hex(curve, G0, POINT_CONVERSION_COMPRESSED, ctx);
+        ss << tmp;
+        OPENSSL_free(tmp);
+        tmp = EC_POINT_point2hex(curve, G1, POINT_CONVERSION_COMPRESSED, ctx);
+        ss << tmp;
+        OPENSSL_free(tmp);
+        tmp = EC_POINT_point2hex(curve, G2, POINT_CONVERSION_COMPRESSED, ctx);
+        ss << tmp;
+        OPENSSL_free(tmp);
+        tmp = EC_POINT_point2hex(curve, H0, POINT_CONVERSION_COMPRESSED, ctx);
+        ss << tmp;
+        OPENSSL_free(tmp);
+        tmp = EC_POINT_point2hex(curve, Ga, POINT_CONVERSION_COMPRESSED, ctx);
+        ss << tmp;
+        OPENSSL_free(tmp);
+        tmp = EC_POINT_point2hex(curve, Ha, POINT_CONVERSION_COMPRESSED, ctx);
+        ss << tmp;
+        OPENSSL_free(tmp);
+        tmp = BN_bn2hex(order);
+        ss << tmp;
+        OPENSSL_free(tmp);
+        tmp = EC_POINT_point2hex(curve, pkA, POINT_CONVERSION_COMPRESSED, ctx);
+        ss << tmp;
+        OPENSSL_free(tmp);
         BN_CTX_end(ctx);
-        return str;
+        return ss.str();
     }
 
     EC_GROUP *get_curve() const { return curve; }
@@ -115,17 +146,34 @@ class P0
 
 public:
     // 构造函数，输入W'和C1'，并赋值
-    P0(EC_GROUP *curve, EC_POINT *W_, EC_POINT *C1_) : curve(curve), W_(W_), C1_(C1_) {}
+    P0(EC_GROUP *curve, EC_POINT *W_, EC_POINT *C1_) : curve(curve)
+    {
+        this->W_ = EC_POINT_new(curve);
+        this->C1_ = EC_POINT_new(curve);
+        EC_POINT_copy(this->W_, W_);
+        EC_POINT_copy(this->C1_, C1_);
+    }
+
+    // 释放内存
+    ~P0()
+    {
+        EC_POINT_free(W_);
+        EC_POINT_free(C1_);
+    }
 
     // 将P0的参数转换为字符串
     std::string to_string(BN_CTX *ctx)
     {
         BN_CTX_start(ctx);
-        std::string str;
-        str += EC_POINT_point2hex(curve, W_, POINT_CONVERSION_COMPRESSED, ctx);
-        str += EC_POINT_point2hex(curve, C1_, POINT_CONVERSION_COMPRESSED, ctx);
+        std::stringstream ss;
+        char *tmp = EC_POINT_point2hex(curve, W_, POINT_CONVERSION_COMPRESSED, ctx);
+        ss << tmp;
+        OPENSSL_free(tmp);
+        tmp = EC_POINT_point2hex(curve, C1_, POINT_CONVERSION_COMPRESSED, ctx);
+        ss << tmp;
+        OPENSSL_free(tmp);
         BN_CTX_end(ctx);
-        return str;
+        return ss.str();
     }
 
     // get函数
@@ -141,17 +189,34 @@ class Pi
 
 public:
     // 构造函数，输入Ai和Di，赋值
-    Pi(EC_GROUP *curve, EC_POINT *Ai, EC_POINT *Di) : curve(curve), Ai(Ai), Di(Di) {}
+    Pi(EC_GROUP *curve, EC_POINT *Ai, EC_POINT *Di) : curve(curve)
+    {
+        this->Ai = EC_POINT_new(curve);
+        this->Di = EC_POINT_new(curve);
+        EC_POINT_copy(this->Ai, Ai);
+        EC_POINT_copy(this->Di, Di);
+    }
+
+    // 释放内存
+    ~Pi()
+    {
+        EC_POINT_free(Ai);
+        EC_POINT_free(Di);
+    }
 
     // 将Pi的参数转换为字符串
     std::string to_string(BN_CTX *ctx)
     {
         BN_CTX_start(ctx);
-        std::string str;
-        str += EC_POINT_point2hex(curve, Ai, POINT_CONVERSION_COMPRESSED, ctx);
-        str += EC_POINT_point2hex(curve, Di, POINT_CONVERSION_COMPRESSED, ctx);
+        std::stringstream ss;
+        char *tmp = EC_POINT_point2hex(curve, Ai, POINT_CONVERSION_COMPRESSED, ctx);
+        ss << tmp;
+        OPENSSL_free(tmp);
+        tmp = EC_POINT_point2hex(curve, Di, POINT_CONVERSION_COMPRESSED, ctx);
+        ss << tmp;
+        OPENSSL_free(tmp);
         BN_CTX_end(ctx);
-        return str;
+        return ss.str();
     }
 
     // get函数

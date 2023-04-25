@@ -24,5 +24,6 @@ BIGNUM *BN_hash(std::string input)
     SHA256_Update(&sha256, input.c_str(), input.length());
     SHA256_Final(out, &sha256);
     BN_bin2bn(out, 32, hash);
+    delete[] out;
     return hash;
 }
