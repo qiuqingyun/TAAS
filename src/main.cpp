@@ -72,8 +72,6 @@ int main(int argc, char *argv[])
     {
         thread.join();
     }
-    // 输出用户时间
-    std::cout << "User time total: " << duration_user.count() / 1000.0 << " ms" << std::endl;
     // 计算用户时间的平均值
     duration_user /= user_count;
     // 计算证据的平均大小
