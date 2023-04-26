@@ -1,11 +1,17 @@
 #pragma once
 #include <sstream>
+#include <chrono>
+#include <thread>
+#include <vector>
+#include <mutex>
 #include <openssl/bn.h>
 #include <openssl/evp.h>
 #include <openssl/ec.h>
 #include <openssl/rand.h>
+#include "omp.h"
 #include "ec.h"
 #include "hash.h"
+#include "User.h"
 
 class Proof
 {
@@ -205,49 +211,114 @@ public:
             a[i] = BN_rand(256);
         }
 
-        // 计算 W = k1*G1
-        proof->W = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), proof->W, NULL, w1->get_G1(), k1, ctx);
-
-        // 计算 Ui = ui*G_0 + ri*H0，其中i的范围是1到n
+        // 计算 Ui = ui*G_0 + ri*H0
         proof->U = new EC_POINT *[user_count];
+        // 计算 Ai = k1*ui*G2
+        proof->A = new EC_POINT *[user_count];
+        // 计算 Di = k1*Ui
+        proof->D = new EC_POINT *[user_count];
+        // 为Ui, Ai, Di分配空间
         for (int i = 0; i < user_count; i++)
         {
             proof->U[i] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), proof->U[i], NULL, w1->get_G0(), u[i], ctx);
-            EC_POINT *temp = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), temp, NULL, w1->get_H0(), r[i], ctx);
-            EC_POINT_add(w1->get_curve(), proof->U[i], proof->U[i], temp, ctx);
-            EC_POINT_free(temp);
-        }
-
-        // 计算 Ai = k1*ui*G2，其中i的范围是1到n
-        proof->A = new EC_POINT *[user_count];
-        for (int i = 0; i < user_count; i++)
-        {
             proof->A[i] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), proof->A[i], NULL, w1->get_G2(), u[i], ctx);
-            EC_POINT_mul(w1->get_curve(), proof->A[i], NULL, proof->A[i], k1, ctx);
-        }
-
-        // 计算 Di = k1*Ui，其中i的范围是1到n
-        proof->D = new EC_POINT *[user_count];
-        for (int i = 0; i < user_count; i++)
-        {
             proof->D[i] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), proof->D[i], NULL, proof->U[i], k1, ctx);
         }
 
         // 计算 U'= a1*U1 + a2*U2 + ... + an*Un
         proof->U_ = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), proof->U_, NULL, proof->U[0], a[0], ctx);
-        for (int i = 1; i < user_count; i++)
+        // 赋值 U' = 0
+        EC_POINT_set_to_infinity(w1->get_curve(), proof->U_);
+        // 计算 x_hat = x' + S1*k1*u1 + S2*k1*u2 + ... + Sn*k1*un
+        proof->x_hat = BN_new();
+        BN_copy(proof->x_hat, x_); // 将x'赋值给x_hat
+        // 计算 y_hat = y' + S1*k1*r1 + S2*k1*r2 + ... + Sn*k1*rn
+        proof->y_hat = BN_new();
+        BN_copy(proof->y_hat, y_); // 将y'赋值给y_hat
+
+        // 循环计算Ui，Ai，Di，U'，x_hat和y_hat
+// 并行化
+#pragma omp parallel for
+        for (int i = 0; i < user_count; i++)
         {
-            EC_POINT *temp = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), temp, NULL, proof->U[i], a[i], ctx);
-            EC_POINT_add(w1->get_curve(), proof->U_, proof->U_, temp, ctx);
-            EC_POINT_free(temp);
+            BN_CTX *temp_ctx = BN_CTX_new();
+            // 初始化临时变量
+            EC_POINT *temp_Ui1 = EC_POINT_new(w1->get_curve());
+            EC_POINT *temp_Ui2 = EC_POINT_new(w1->get_curve());
+            EC_POINT *temp_Ui = EC_POINT_new(w1->get_curve());
+            EC_POINT *temp_Ai = EC_POINT_new(w1->get_curve());
+            EC_POINT *temp_Di = EC_POINT_new(w1->get_curve());
+            EC_POINT *temp_U_ = EC_POINT_new(w1->get_curve());
+            BIGNUM *temp = BN_new();
+            BIGNUM *temp_x_hat = BN_new();
+            BIGNUM *temp_y_hat = BN_new();
+            BIGNUM *ui = BN_new();
+            BIGNUM *ri = BN_new();
+            BIGNUM *ai = BN_new();
+            // 加锁读取u[i]，r[i]和a[i]
+#pragma omp critical
+            {
+                BN_copy(ui, u[i]);
+                BN_copy(ri, r[i]);
+                BN_copy(ai, a[i]);
+            }
+            // 计算Ui
+            EC_POINT_mul(w1->get_curve(), temp_Ui1, NULL, w1->get_G0(), ui, temp_ctx);
+            EC_POINT_mul(w1->get_curve(), temp_Ui2, NULL, w1->get_H0(), ri, temp_ctx);
+            EC_POINT_add(w1->get_curve(), temp_Ui, temp_Ui1, temp_Ui2, temp_ctx);
+            // 计算Ai
+            EC_POINT_mul(w1->get_curve(), temp_Ai, NULL, w1->get_G2(), k1, temp_ctx);
+            EC_POINT_mul(w1->get_curve(), temp_Ai, NULL, temp_Ai, ui, temp_ctx);
+            // 计算Di
+            EC_POINT_mul(w1->get_curve(), temp_Di, NULL, temp_Ui, k1, temp_ctx);
+            // 计算U'
+            EC_POINT_mul(w1->get_curve(), temp_U_, NULL, temp_Ui, ai, temp_ctx);
+            // 设置公开参数组Pi
+            Pi pi(w1->get_curve(), temp_Ai, temp_Di);
+            // 计算哈希值 Si = hash(i||W1||Pi)
+            std::string combined = bind(std::to_string(i), w1->to_string(temp_ctx), pi.to_string(temp_ctx));
+            BIGNUM *Si = BN_hash(combined);
+            BN_mod_mul(temp, Si, k1, w1->get_order(), temp_ctx);
+            // 计算x_hat
+            BN_mod_mul(temp_x_hat, temp, u[i], w1->get_order(), temp_ctx);
+            // 计算y_hat
+            BN_mod_mul(temp_y_hat, temp, r[i], w1->get_order(), temp_ctx);
+            // 加锁，赋值Ui，Ai和Di并累加U'，x_hat和y_hat
+#pragma omp critical
+            {
+                
+                EC_POINT_copy(proof->U[i], temp_Ui);
+                EC_POINT_copy(proof->A[i], temp_Ai);
+                EC_POINT_copy(proof->D[i], temp_Di);
+
+                EC_POINT_add(w1->get_curve(), proof->U_, proof->U_, temp_U_, temp_ctx);
+                BN_mod_add(proof->x_hat, proof->x_hat, temp_x_hat, w1->get_order(), temp_ctx);
+                BN_mod_add(proof->y_hat, proof->y_hat, temp_y_hat, w1->get_order(), temp_ctx);
+            }
+            // 释放临时变量
+            EC_POINT_free(temp_Ui1);
+            EC_POINT_free(temp_Ui2);
+            EC_POINT_free(temp_Ui);
+            EC_POINT_free(temp_Ai);
+            EC_POINT_free(temp_Di);
+            EC_POINT_free(temp_U_);
+            BN_free(ui);
+            BN_free(ri);
+            BN_free(ai);
+            BN_free(Si);
+            BN_free(temp);
+            BN_free(temp_x_hat);
+            BN_free(temp_y_hat);
+            BN_CTX_free(temp_ctx);
         }
+
+        // 计算 W = k1*G1
+        proof->W = EC_POINT_new(w1->get_curve());
+        EC_POINT_mul(w1->get_curve(), proof->W, NULL, w1->get_G1(), k1, ctx);
+
+        // 计算 W' = k'*G1
+        proof->W_ = EC_POINT_new(w1->get_curve());
+        EC_POINT_mul(w1->get_curve(), proof->W_, NULL, w1->get_G1(), k_, ctx);
 
         // 计算 C1 = k1*U'
         proof->C1 = EC_POINT_new(w1->get_curve());
@@ -256,22 +327,6 @@ public:
         // 计算 C1' = k'*U'
         proof->C1_ = EC_POINT_new(w1->get_curve());
         EC_POINT_mul(w1->get_curve(), proof->C1_, NULL, proof->U_, k_, ctx);
-
-        // 计算 W' = k'*G1
-        proof->W_ = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), proof->W_, NULL, w1->get_G1(), k_, ctx);
-
-        // 设置公开参数组P0
-        P0 p0(w1->get_curve(), proof->W_, proof->C1_);
-
-        // 计算哈希值 S0 = hash(W1||P0)
-        std::string combined = bind(w1->to_string(ctx), p0.to_string(ctx));
-        BIGNUM *S0 = BN_hash(combined);
-
-        // 计算 k_hat = S0*k1+k'
-        proof->k_hat = BN_new();
-        BN_mod_mul(proof->k_hat, S0, k1, w1->get_order(), ctx);
-        BN_mod_add(proof->k_hat, proof->k_hat, k_, w1->get_order(), ctx);
 
         // 计算 A' = x'*G2
         proof->A_ = EC_POINT_new(w1->get_curve());
@@ -285,43 +340,18 @@ public:
         EC_POINT_add(w1->get_curve(), proof->D_, proof->D_, temp, ctx);
         EC_POINT_free(temp);
 
-        // 计算 x_hat = x' + S1*k1*u1 + S2*k1*u2 + ... + Sn*k1*un
-        proof->x_hat = BN_new();
-        BN_copy(proof->x_hat, x_); // 将x'赋值给x_hat
-        for (int i = 0; i < user_count; i++)
-        {
-            // 设置公开参数组Pi
-            Pi pi(w1->get_curve(), proof->A[i], proof->D[i]);
-            // 计算哈希值 Si = hash(i||W1||Pi)
-            std::string combined = bind(std::to_string(i), w1->to_string(ctx), pi.to_string(ctx));
-            BIGNUM *Si = BN_hash(combined);
-            // 累加
-            BIGNUM *temp = BN_new();
-            BN_mod_mul(temp, Si, k1, w1->get_order(), ctx);
-            BN_mod_mul(temp, temp, u[i], w1->get_order(), ctx);
-            BN_mod_add(proof->x_hat, proof->x_hat, temp, w1->get_order(), ctx);
-            BN_free(temp);
-            BN_free(Si);
-        }
+        // 设置公开参数组P0
+        P0 p0(w1->get_curve(), proof->W_, proof->C1_);
 
-        // 计算 y_hat = y' + S1*k1*r1 + S2*k1*r2 + ... + Sn*k1*rn
-        proof->y_hat = BN_new();
-        BN_copy(proof->y_hat, y_); // 将y'赋值给y_hat
-        for (int i = 0; i < user_count; i++)
-        {
-            // 设置公开参数组Pi
-            Pi pi(w1->get_curve(), proof->A[i], proof->D[i]);
-            // 计算哈希值 Si = hash(i||W1||Pi)
-            std::string combined = bind(std::to_string(i), w1->to_string(ctx), pi.to_string(ctx));
-            BIGNUM *Si = BN_hash(combined);
-            // 累加
-            BIGNUM *temp = BN_new();
-            BN_mod_mul(temp, Si, k1, w1->get_order(), ctx);
-            BN_mod_mul(temp, temp, r[i], w1->get_order(), ctx);
-            BN_mod_add(proof->y_hat, proof->y_hat, temp, w1->get_order(), ctx);
-            BN_free(temp);
-            BN_free(Si);
-        }
+        // 计算哈希值 S0 = hash(W1||P0)
+        std::string combined = bind(w1->to_string(ctx), p0.to_string(ctx));
+        BIGNUM *S0 = BN_hash(combined);
+
+        // 计算 k_hat = S0*k1+k'
+        proof->k_hat = BN_new();
+        BN_mod_mul(proof->k_hat, S0, k1, w1->get_order(), ctx);
+        BN_mod_add(proof->k_hat, proof->k_hat, k_, w1->get_order(), ctx);
+
         BN_CTX_end(ctx);
         // 释放内存
         BN_free(k1);

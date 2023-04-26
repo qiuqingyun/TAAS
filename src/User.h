@@ -114,6 +114,8 @@ public:
         size += EC_POINT_point2oct(w1->get_curve(), Ui, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
         for (int i = 0; i < 2; i++)
             size += EC_POINT_point2oct(w1->get_curve(), Vi[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += BN_num_bytes(ui);
+        size += BN_num_bytes(ri);
         BN_CTX_end(ctx);
         return size;
     }

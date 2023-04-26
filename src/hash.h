@@ -5,7 +5,7 @@
 
 // 递归展开函数模板
 template <typename... Args>
-std::string bind(const Args &...args)
+inline std::string bind(const Args &...args)
 {
     std::string result;
     // C++17 折叠表达式 (fold expression)
@@ -15,7 +15,7 @@ std::string bind(const Args &...args)
 }
 
 // 计算输入值的哈希值
-BIGNUM *BN_hash(std::string input)
+inline BIGNUM *BN_hash(std::string input)
 {
     BIGNUM *hash = BN_new();
     unsigned char *out = new unsigned char[32];

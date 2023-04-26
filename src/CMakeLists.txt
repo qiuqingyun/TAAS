@@ -14,6 +14,9 @@ find_library(GMPXX_LIBRARIES NAMES gmpxx libgmpxx)
 find_path(NTL_INCLUDE_DIR NAMES NTL)
 find_library(NTL_LIBRARIES NAMES ntl libntl)
 
+# OpenMP
+find_package(OpenMP REQUIRED)
+
 ADD_EXECUTABLE(main ${SRC_FRONTEND})
 
 target_include_directories(main
@@ -22,7 +25,7 @@ target_include_directories(main
 )
 
 set(DEP_LIBS
-    OpenSSL::Crypto OpenSSL::SSL ntl gmp gmpxx
+    OpenMP::OpenMP_CXX OpenSSL::Crypto OpenSSL::SSL ntl gmp gmpxx
 )
 
 target_link_libraries(main
