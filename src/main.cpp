@@ -1,4 +1,7 @@
 #include <chrono>
+#include <thread>
+#include <vector>
+#include <mutex>
 #include "ec.h"
 #include "hash.h"
 #include "User.h"
@@ -31,20 +34,43 @@ int main(int argc, char *argv[])
     size_t evidence_size = 0;                                        // 用户证据大小
     std::chrono::microseconds duration_user(0);                      // 用户生成时间
     // 循环生成用户数据
-    for (int i = 0; i < user_count; i++)
+    // Lambda函数，表示线程要执行的任务
+    auto user_task = [&](int start, int end)
     {
-        // 生成随机用户
-        User user(&w1);
-        auto start_user = std::chrono::high_resolution_clock::now(); // 记录开始时间
-        // 计算Ui和Vi
-        user.compute(ctx);
-        auto end_user = std::chrono::high_resolution_clock::now();                                     // 记录结束时间
-        duration_user += std::chrono::duration_cast<std::chrono::microseconds>(end_user - start_user); // 累加运行时间
-        // 存储用户数据
-        user_data[i] = user.get_user_data();
-        user_evidence[i] = user.get_user_evidence();
-        // 累加证据大小
-        evidence_size += user.get_evidence_size(ctx);
+        for (int i = start; i < end; i++)
+        {
+            // 生成随机用户
+            User user(&w1);
+            BN_CTX *ctx_user = BN_CTX_new();
+            auto start_user = std::chrono::high_resolution_clock::now(); // 记录开始时间
+            // 计算Ui和Vi
+            user.compute(ctx_user);
+            auto end_user = std::chrono::high_resolution_clock::now();                                     // 记录结束时间
+            duration_user += std::chrono::duration_cast<std::chrono::microseconds>(end_user - start_user); // 累加运行时间
+            // 存储用户数据
+            user_data[i] = user.get_user_data();
+            user_evidence[i] = user.get_user_evidence();
+            // 累加证据大小
+            evidence_size += user.get_evidence_size(ctx_user);
+            BN_CTX_free(ctx_user);
+        }
+    };
+
+    // 开启线程
+    int thread_count = std::thread::hardware_concurrency();
+    std::vector<std::thread> threads;
+    int count_per_thread = user_count / thread_count;
+    for (int i = 0; i < thread_count; i++)
+    {
+        int start = i * count_per_thread;
+        int end = (i == thread_count - 1) ? user_count : start + count_per_thread;
+        threads.emplace_back(user_task, start, end);
+    }
+
+    // 等待线程完成
+    for (auto &thread : threads)
+    {
+        thread.join();
     }
     // 输出用户时间
     std::cout << "User time total: " << duration_user.count() / 1000.0 << " ms" << std::endl;

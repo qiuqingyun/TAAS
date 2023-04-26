@@ -28,5 +28,6 @@ set(DEP_LIBS
 target_link_libraries(main
     PUBLIC
     ${DEP_LIBS}
+    -pthread
 )
 
