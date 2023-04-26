@@ -26,12 +26,10 @@ int main(int argc, char *argv[])
 
     /* User */
     // 存储所有用户的数据
-    BIGNUM **u = new BIGNUM *[user_count];            // 所有用户的身份标识
-    BIGNUM **r = new BIGNUM *[user_count];            // 所有用户的随机数
-    EC_POINT **U_user = new EC_POINT *[user_count];   // 所有用户的加密证据
-    EC_POINT ***V_user = new EC_POINT **[user_count]; // 所有用户的加密金额
-    size_t evidence_size = 0;                         // 用户证据大小
-    std::chrono::microseconds duration_user(0);       // 用户生成时间
+    User_data **user_data = new User_data *[user_count];             // 所有用户的数据
+    User_evidence **user_evidence = new User_evidence *[user_count]; // 所有用户的证据
+    size_t evidence_size = 0;                                        // 用户证据大小
+    std::chrono::microseconds duration_user(0);                      // 用户生成时间
     // 循环生成用户数据
     for (int i = 0; i < user_count; i++)
     {
@@ -43,20 +41,13 @@ int main(int argc, char *argv[])
         auto end_user = std::chrono::high_resolution_clock::now();                                     // 记录结束时间
         duration_user += std::chrono::duration_cast<std::chrono::microseconds>(end_user - start_user); // 累加运行时间
         // 存储用户数据
-        u[i] = BN_new();
-        r[i] = BN_new();
-        U_user[i] = EC_POINT_new(w1.get_curve());
-        V_user[i] = new EC_POINT *[2];
-        V_user[i][0] = EC_POINT_new(w1.get_curve());
-        V_user[i][1] = EC_POINT_new(w1.get_curve());
-        BN_copy(u[i], user.get_ui());
-        BN_copy(r[i], user.get_ri());
-        EC_POINT_copy(U_user[i], user.get_Ui());
-        EC_POINT_copy(V_user[i][0], user.get_Vi()[0]);
-        EC_POINT_copy(V_user[i][1], user.get_Vi()[1]);
+        user_data[i] = user.get_user_data();
+        user_evidence[i] = user.get_user_evidence();
         // 累加证据大小
         evidence_size += user.get_evidence_size(ctx);
     }
+    // 输出用户时间
+    std::cout << "User time total: " << duration_user.count() / 1000.0 << " ms" << std::endl;
     // 计算用户时间的平均值
     duration_user /= user_count;
     // 计算证据的平均大小
@@ -65,7 +56,7 @@ int main(int argc, char *argv[])
     /* 批量模式测试 */
     // 广告主
     auto start_advertiser = std::chrono::high_resolution_clock::now(); // 记录开始时间
-    advertiser.set_user_data(u, r);
+    advertiser.set_user_data(user_data);
     // 计算广告主的证明
     advertiser.compute(ctx);
     auto end_advertiser = std::chrono::high_resolution_clock::now();                                                           // 记录结束时间
@@ -93,14 +84,10 @@ int main(int argc, char *argv[])
     for (int i = 0; i < user_count; i++)
     {
         // 广告主
-        BIGNUM **u_temp = new BIGNUM *[1];
-        BIGNUM **r_temp = new BIGNUM *[1];
-        u_temp[0] = BN_new();
-        r_temp[0] = BN_new();
-        BN_copy(u_temp[0], u[i]);
-        BN_copy(r_temp[0], r[i]);
+        User_data **user_data_temp = new User_data *[1];
+        user_data_temp[0] = new User_data(user_data[i]);
         Advertiser advertiser_single(&w1, 1);
-        advertiser_single.set_user_data(u_temp, r_temp);
+        advertiser_single.set_user_data(user_data_temp);
         auto start_advertiser_single = std::chrono::high_resolution_clock::now(); // 记录广告主开始时间
         // 计算广告主的证明
         advertiser_single.compute(ctx);
@@ -120,27 +107,19 @@ int main(int argc, char *argv[])
         duration_advertiser_single += std::chrono::duration_cast<std::chrono::microseconds>(end_advertiser_single - start_advertiser_single);
         duration_platform_single += std::chrono::duration_cast<std::chrono::microseconds>(end_platform_single - start_platform_single);
         // 释放内存
-        BN_free(u_temp[0]);
-        BN_free(r_temp[0]);
-        delete[] u_temp;
-        delete[] r_temp;
+        delete user_data_temp[0];
+        delete[] user_data_temp;
         delete proof_single;
     }
 
     // 释放内存
     for (int i = 0; i < user_count; i++)
     {
-        BN_free(u[i]);
-        BN_free(r[i]);
-        EC_POINT_free(U_user[i]);
-        EC_POINT_free(V_user[i][0]);
-        EC_POINT_free(V_user[i][1]);
-        delete[] V_user[i];
+        delete user_data[i];
+        delete user_evidence[i];
     }
-    delete[] u;
-    delete[] r;
-    delete[] U_user;
-    delete[] V_user;
+    delete[] user_data;
+    delete[] user_evidence;
     // 释放上下文
     BN_CTX_free(ctx);
 

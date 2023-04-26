@@ -337,7 +337,7 @@ public:
     }
 
     // set u和r
-    void set_user_data(BIGNUM **u, BIGNUM **r)
+    void set_user_data(User_data **user_data)
     {
         this->u = new BIGNUM *[user_count];
         this->r = new BIGNUM *[user_count];
@@ -345,8 +345,8 @@ public:
         {
             this->u[i] = BN_new();
             this->r[i] = BN_new();
-            BN_copy(this->u[i], u[i]);
-            BN_copy(this->r[i], r[i]);
+            BN_copy(this->u[i], user_data[i]->u);
+            BN_copy(this->r[i], user_data[i]->r);
         }
     }
     // set user_count

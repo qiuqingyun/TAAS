@@ -6,6 +6,44 @@
 #include <openssl/rand.h>
 #include "ec.h"
 
+class User_data
+{
+public:
+    BIGNUM *u, *r;
+    // 构造函数
+    User_data() {}
+
+    // 深拷贝构造函数
+    User_data(User_data *user_data)
+    {
+        u = BN_dup(user_data->u);
+        r = BN_dup(user_data->r);
+    }
+
+    // 释放内存
+    ~User_data()
+    {
+        BN_free(u);
+        BN_free(r);
+    }
+};
+
+class User_evidence
+{
+public:
+    EC_POINT *U;
+    std::pair<EC_POINT *, EC_POINT *> *V;
+
+    // 释放内存
+    ~User_evidence()
+    {
+        EC_POINT_free(U);
+        EC_POINT_free(V->first);
+        EC_POINT_free(V->second);
+        delete V;
+    }
+};
+
 class User
 {
     W1 *w1;
@@ -81,8 +119,20 @@ public:
     }
 
     // get函数
-    BIGNUM *get_ui() { return ui; }
-    BIGNUM *get_ri() { return ri; }
-    EC_POINT *get_Ui() { return Ui; }
-    EC_POINT **get_Vi() { return Vi; }
+    User_data *get_user_data()
+    {
+        User_data *user_data = new User_data;
+        user_data->u = BN_dup(ui);
+        user_data->r = BN_dup(ri);
+        return user_data;
+    }
+    User_evidence *get_user_evidence()
+    {
+        User_evidence *user_evidence = new User_evidence;
+        user_evidence->U = EC_POINT_dup(Ui, w1->get_curve());
+        user_evidence->V = new std::pair<EC_POINT *, EC_POINT *>;
+        user_evidence->V->first = EC_POINT_dup(Vi[0], w1->get_curve());
+        user_evidence->V->second = EC_POINT_dup(Vi[1], w1->get_curve());
+        return user_evidence;
+    }
 };
