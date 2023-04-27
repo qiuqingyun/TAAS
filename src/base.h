@@ -5,9 +5,13 @@
 #include <chrono>
 #include <iomanip>
 #include <mutex>
+#include <cmath>
+#include <unordered_map>
 #include <openssl/bn.h>
 #include <openssl/ec.h>
 #include <openssl/evp.h>
+#include <openssl/ecdh.h>
 #include <openssl/rand.h>
 #include <openssl/sha.h>
+#include <openssl/obj_mac.h>
 #include "omp.h"

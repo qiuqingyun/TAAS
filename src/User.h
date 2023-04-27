@@ -2,11 +2,12 @@
 #pragma once
 #include "base.h"
 #include "ec.h"
+#include "ElGamal.h"
 
 class User_data
 {
 public:
-    BIGNUM *u, *r;
+    BIGNUM *u, *r, *v;
     // 构造函数
     User_data() {}
 
@@ -15,6 +16,8 @@ public:
     {
         u = BN_dup(user_data->u);
         r = BN_dup(user_data->r);
+        if (user_data->v != NULL)
+            v = BN_dup(user_data->v);
     }
 
     // 释放内存
@@ -22,6 +25,7 @@ public:
     {
         BN_free(u);
         BN_free(r);
+        BN_free(v);
     }
 };
 
@@ -29,14 +33,12 @@ class User_evidence
 {
 public:
     EC_POINT *U;
-    std::pair<EC_POINT *, EC_POINT *> *V;
+    ElGamal_ciphertext *V;
 
     // 释放内存
     ~User_evidence()
     {
         EC_POINT_free(U);
-        EC_POINT_free(V->first);
-        EC_POINT_free(V->second);
         delete V;
     }
 };
@@ -45,7 +47,8 @@ class User
 {
     W1 *w1;
     BIGNUM *ui, *ri, *vi;
-    EC_POINT *Ui, **Vi;
+    EC_POINT *Ui;
+    ElGamal_ciphertext *Vi;
 
 public:
     // 构造函数，接收W1，并生成随机的ui和ri
@@ -57,7 +60,12 @@ public:
     }
 
     // 构造函数，接收W1，ui和ri并保存
-    User(W1 *w1, BIGNUM *ui, BIGNUM *ri) : w1(w1), ui(ui), ri(ri) {}
+    User(W1 *w1, BIGNUM *ui, BIGNUM *ri, BIGNUM *vi) : w1(w1)
+    {
+        this->ui = BN_dup(ui);
+        this->ri = BN_dup(ri);
+        this->vi = BN_dup(vi);
+    }
 
     // 析构函数，释放内存
     ~User()
@@ -66,9 +74,7 @@ public:
         BN_free(ri);
         BN_free(vi);
         EC_POINT_free(Ui);
-        for (int i = 0; i < 2; i++)
-            EC_POINT_free(Vi[i]);
-        delete[] Vi;
+        delete Vi;
     }
 
     // 计算Ui和Vi
@@ -84,18 +90,18 @@ public:
         EC_POINT_mul(w1->get_curve(), temp2, NULL, w1->get_H0(), ri, ctx); // temp2 = ri*H0
         EC_POINT_add(w1->get_curve(), Ui, temp1, temp2, ctx);
         // 初始化Vi
-        Vi = new EC_POINT *[2];
+        Vi = new ElGamal_ciphertext();
         // 生成随机数 ri'
         BIGNUM *ri_ = BN_rand(32);
         // V1i = ri*Ga + ri'*pkA
-        Vi[0] = EC_POINT_new(w1->get_curve());
+        Vi->C1 = EC_POINT_new(w1->get_curve());
         EC_POINT *temp3 = EC_POINT_new(w1->get_curve());
         EC_POINT_mul(w1->get_curve(), temp1, NULL, w1->get_Ga(), ri, ctx);   // temp1 = ri*Ga
         EC_POINT_mul(w1->get_curve(), temp2, NULL, w1->get_pkA(), ri_, ctx); // temp2 = ri'*pkA
-        EC_POINT_add(w1->get_curve(), Vi[0], temp1, temp2, ctx);
+        EC_POINT_add(w1->get_curve(), Vi->C1, temp1, temp2, ctx);
         // V2i = ri'*Ha
-        Vi[1] = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), Vi[1], NULL, w1->get_Ha(), ri_, ctx);
+        Vi->C2 = EC_POINT_new(w1->get_curve());
+        EC_POINT_mul(w1->get_curve(), Vi->C2, NULL, w1->get_Ha(), ri_, ctx);
         BN_CTX_end(ctx);
         BN_free(ri_);
         EC_POINT_free(temp1);
@@ -109,8 +115,8 @@ public:
         BN_CTX_start(ctx);
         size_t size = 0;
         size += EC_POINT_point2oct(w1->get_curve(), Ui, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        for (int i = 0; i < 2; i++)
-            size += EC_POINT_point2oct(w1->get_curve(), Vi[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(w1->get_curve(), Vi->C1, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(w1->get_curve(), Vi->C2, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
         size += BN_num_bytes(ui);
         size += BN_num_bytes(ri);
         BN_CTX_end(ctx);
@@ -129,9 +135,7 @@ public:
     {
         User_evidence *user_evidence = new User_evidence;
         user_evidence->U = EC_POINT_dup(Ui, w1->get_curve());
-        user_evidence->V = new std::pair<EC_POINT *, EC_POINT *>;
-        user_evidence->V->first = EC_POINT_dup(Vi[0], w1->get_curve());
-        user_evidence->V->second = EC_POINT_dup(Vi[1], w1->get_curve());
+        user_evidence->V = new ElGamal_ciphertext(w1->get_curve(), Vi);
         return user_evidence;
     }
 };

@@ -150,10 +150,10 @@ class Advertiser
 {
     W1 *w1;
     int user_count;
-    BIGNUM *skA, **u, **r;
+    BIGNUM *skA, **u = nullptr, **r = nullptr;
     EC_POINT *pkA;
     // 证明Proof
-    Proof *proof;
+    Proof *proof = nullptr;
 
 public:
     // 构造函数
@@ -172,14 +172,18 @@ public:
     {
         BN_free(skA);
         EC_POINT_free(pkA);
-        for (int i = 0; i < user_count; i++)
+        if (u != nullptr && r != nullptr)
         {
-            BN_free(u[i]);
-            BN_free(r[i]);
+            for (int i = 0; i < user_count; i++)
+            {
+                BN_free(u[i]);
+                BN_free(r[i]);
+            }
+            delete[] u;
+            delete[] r;
         }
-        delete[] u;
-        delete[] r;
-        delete proof;
+        if (proof != nullptr)
+            delete proof;
     }
 
     // 计算证明
@@ -277,7 +281,6 @@ public:
             // 加锁，赋值Ui，Ai和Di并累加U'，x_hat和y_hat
 #pragma omp critical
             {
-                
                 EC_POINT_copy(proof->U[i], temp_Ui);
                 EC_POINT_copy(proof->A[i], temp_Ai);
                 EC_POINT_copy(proof->D[i], temp_Di);

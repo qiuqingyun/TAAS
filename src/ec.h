@@ -15,6 +15,16 @@ BIGNUM *BN_rand(int bits)
     return rand;
 }
 
+// 椭圆曲线点减法
+void EC_POINT_sub(EC_GROUP *curve, EC_POINT *r, EC_POINT *a, EC_POINT *b, BN_CTX *ctx)
+{
+    EC_POINT *temp = EC_POINT_new(curve);
+    EC_POINT_copy(temp, b);
+    EC_POINT_invert(curve, temp, ctx);
+    EC_POINT_add(curve, r, a, temp, ctx);
+    EC_POINT_free(temp);
+}
+
 // 公开参数组W1
 class W1
 {
