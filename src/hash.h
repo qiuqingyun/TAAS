@@ -1,7 +1,5 @@
 #pragma once
-#include <openssl/bn.h>
-#include <openssl/sha.h>
-#include <string>
+#include "base.h"
 
 // 递归展开函数模板
 template <typename... Args>

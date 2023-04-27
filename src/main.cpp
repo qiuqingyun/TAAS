@@ -1,13 +1,7 @@
-#include <chrono>
-#include <thread>
-#include <vector>
-#include <mutex>
-#include <iomanip>
-#include "ec.h"
-#include "hash.h"
 #include "User.h"
 #include "Advertiser.h"
 #include "Platform.h"
+int test_verify(int user_count);
 
 int main(int argc, char *argv[])
 {
@@ -18,7 +12,12 @@ int main(int argc, char *argv[])
         // 读取argv[1]并赋值到user_count
         user_count = atoi(argv[1]);
     }
+    // test_verify(user_count);
+    return 0;
+}
 
+int test_verify(int user_count)
+{
     // 初始化 OpenSSL
     OpenSSL_add_all_algorithms();
     BN_CTX *ctx = BN_CTX_new();

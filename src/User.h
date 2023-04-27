@@ -1,9 +1,6 @@
 // User类，实现生成用户数据的功能
 #pragma once
-#include <openssl/bn.h>
-#include <openssl/evp.h>
-#include <openssl/ec.h>
-#include <openssl/rand.h>
+#include "base.h"
 #include "ec.h"
 
 class User_data
