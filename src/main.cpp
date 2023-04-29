@@ -144,6 +144,10 @@ int main(int argc, char *argv[])
         // 释放内存
         BN_CTX_free(ctx_user);
     }
+    // 计算用户时间的平均值
+    duration_user /= user_count_advertiser;
+    // 计算证据的平均大小
+    evidence_size /= user_count_advertiser;
 
     // 广告主
     auto start_advertiser = std::chrono::high_resolution_clock::now(); // 记录开始时间
@@ -162,36 +166,61 @@ int main(int argc, char *argv[])
     Platform platform(&w1, user_count_advertiser, user_count_platform, user_id_platform);
     // 验证广告主的证明
     bool result_batch = platform.proof_verify(proof_batch, ctx);
+    if (!result_batch)
+    {
+        std::cout << "proof verify failed" << std::endl;
+        return 1;
+    }
+
     auto end_platform = std::chrono::high_resolution_clock::now();                                                       // 记录结束时间
     auto duration_platform_batch = std::chrono::duration_cast<std::chrono::microseconds>(end_platform - start_platform); // 计算运行时间
     // 释放内存
     delete proof_batch;
 
+    auto start_platform_A1 = std::chrono::high_resolution_clock::now(); // 记录开始时间
     platform.round_P1(ctx);
+    auto end_platform_A1 = std::chrono::high_resolution_clock::now();                                                       // 记录结束时间
+    auto duration_platform_A1 = std::chrono::duration_cast<std::chrono::microseconds>(end_platform_A1 - start_platform_A1); // 计算运行时间
     Message_P1 *message_p1 = platform.get_message_p1();
 
+    auto start_advertiser_A2 = std::chrono::high_resolution_clock::now(); // 记录开始时间
     if (advertiser.round_A2(message_p1, ctx))
     {
-        std::cout << "round_A2 failed" << std::endl;
+        std::cout << "round_A2 verify failed" << std::endl;
+        return 1;
     }
+    auto end_advertiser_A2 = std::chrono::high_resolution_clock::now();                                                           // 记录结束时间
+    auto duration_advertiser_A2 = std::chrono::duration_cast<std::chrono::microseconds>(end_advertiser_A2 - start_advertiser_A2); // 计算运行时间
     Message_A2 *message_a2 = advertiser.get_message_a2();
 
+    auto start_platform_P3 = std::chrono::high_resolution_clock::now(); // 记录开始时间
     if (platform.round_P3(message_a2, ctx))
     {
-        std::cout << "round_P3 failed" << std::endl;
+        std::cout << "round_P3 verify failed" << std::endl;
+        return 1;
     }
+    auto end_platform_P3 = std::chrono::high_resolution_clock::now();                                                       // 记录结束时间
+    auto duration_platform_P3 = std::chrono::duration_cast<std::chrono::microseconds>(end_platform_P3 - start_platform_P3); // 计算运行时间
     Message_P3 *message_p3 = platform.get_message_p3();
 
+    auto start_advertiser_A4 = std::chrono::high_resolution_clock::now(); // 记录开始时间
     if (advertiser.round_A4(message_p3, ctx))
     {
-        std::cout << "round_A4 failed" << std::endl;
+        std::cout << "round_A4 verify failed" << std::endl;
+        return 1;
     }
+    auto end_advertiser_A4 = std::chrono::high_resolution_clock::now();                                                           // 记录结束时间
+    auto duration_advertiser_A4 = std::chrono::duration_cast<std::chrono::microseconds>(end_advertiser_A4 - start_advertiser_A4); // 计算运行时间
     Message_A4 *message_a4 = advertiser.get_message_a4();
 
+    auto start_platform_P5 = std::chrono::high_resolution_clock::now(); // 记录开始时间
     if (platform.round_P5(message_a4, ctx))
     {
-        std::cout << "round_P5 failed" << std::endl;
+        std::cout << "round_P5 verify failed" << std::endl;
+        return 1;
     }
+    auto end_platform_P5 = std::chrono::high_resolution_clock::now();                                                       // 记录结束时间
+    auto duration_platform_P5 = std::chrono::duration_cast<std::chrono::microseconds>(end_platform_P5 - start_platform_P5); // 计算运行时间
 
     // 释放内存
     delete message_p1;
@@ -226,32 +255,28 @@ int main(int argc, char *argv[])
         float time_scale = 1000.0f * 1000.0f; // 时间单位换算
         float size_scale = 1024.0f;           // 尺寸单位换算
         std::cout << "{";
-        // 批量验证结果
         std::cout << "\"input_size\": " << user_count_advertiser << ", "; // 用户数量
-        if (result_batch)
-        {
-            std::cout << "\"result_batch\": true, "; // 验证成功
-        }
-        else
-        {
-            std::cout << "\"result_batch\": false, "; // 验证失败
-        }
         // 输出一个data对象，其中包括time对象和size对象
         std::cout << "\"data\": {";
         // time对象里包含用户时间、广告主时间和广告平台时间
         // 设置输出精度
         std::cout << std::fixed << std::setprecision(6);
         std::cout << "\"time\": {";
-        std::cout << "\"user\": " << duration_user.count() / time_scale << ", ";                         // 用户时间
-        std::cout << "\"advertiser_batch\": " << duration_advertiser_batch.count() / time_scale << ", "; // 批量模式广告主时间
-        std::cout << "\"platform_batch\": " << duration_platform_batch.count() / time_scale << ", ";     // 批量模式广告平台时间
+        std::cout << "\"evidence_gen\": " << duration_user.count() / time_scale << ", ";           // 用户生成证据时间
+        std::cout << "\"prove_gen\": " << duration_advertiser_batch.count() / time_scale << ", ";  // 广告主生成证明时间
+        std::cout << "\"prove_verify\": " << duration_platform_batch.count() / time_scale << ", "; // 广告平台验证证明时间
+        std::cout << "\"PSI_P1\": " << duration_platform_A1.count() / time_scale << ", ";          // 广告平台P1时间
+        std::cout << "\"PSI_A2\": " << duration_advertiser_A2.count() / time_scale << ", ";        // 广告主A2时间
+        std::cout << "\"PSI_P3\": " << duration_platform_P3.count() / time_scale << ", ";          // 广告平台P3时间
+        std::cout << "\"PSI_A4\": " << duration_advertiser_A4.count() / time_scale << ", ";        // 广告主A4时间
+        std::cout << "\"PSI_P5\": " << duration_platform_P5.count() / time_scale << " ";          // 广告平台P5时间
         std::cout << "},";
         // size对象里包含证明尺寸
         // 设置输出精度
         std::cout << std::fixed << std::setprecision(3);
         std::cout << "\"size\": {";
-        std::cout << "\"evidence\": " << evidence_size / size_scale << ", ";       // 证据尺寸
-        std::cout << "\"proof_batch\": " << proof_size_batch / size_scale << ", "; // 批量模式证明尺寸
+        std::cout << "\"evidence\": " << evidence_size / size_scale << ", "; // 证据尺寸
+        std::cout << "\"proof\": " << proof_size_batch / size_scale << " "; // 批量模式证明尺寸
         std::cout << "}";
         std::cout << "}";
         std::cout << "}" << std::endl;
