@@ -41,7 +41,7 @@ public:
         P0 p0(w1->get_curve(), proof->W_, proof->C1_);
 
         // 计算哈希值 S0 = hash(W1||P0)
-        std::string combined = bind(w1->to_string(ctx), p0.to_string(ctx));
+        std::string combined = str_bind(w1->to_string(ctx), p0.to_string(ctx));
         BIGNUM *S0 = BN_hash(combined);
 
         // 验证等式是否成立: k_hat*G1 = S0*W + W'
@@ -77,7 +77,7 @@ public:
             // 设置公开参数组Pi
             Pi pi(w1->get_curve(), proof->A[i], proof->D[i]);
             // 计算哈希值 Si = hash(i||W1||Pi)
-            std::string combined = bind(std::to_string(i), w1->to_string(temp_ctx), pi.to_string(temp_ctx));
+            std::string combined = str_bind(std::to_string(i), w1->to_string(temp_ctx), pi.to_string(temp_ctx));
             BIGNUM *Si = BN_hash(combined);
             // 计算right3
             EC_POINT_mul(w1->get_curve(), temp_right3, NULL, proof->A[i], Si, temp_ctx);

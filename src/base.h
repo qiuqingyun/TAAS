@@ -6,6 +6,9 @@
 #include <iomanip>
 #include <mutex>
 #include <cmath>
+#include <algorithm>
+#include <random>
+#include <unordered_set>
 #include <unordered_map>
 #include <openssl/bn.h>
 #include <openssl/ec.h>

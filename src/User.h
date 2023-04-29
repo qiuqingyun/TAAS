@@ -89,24 +89,11 @@ public:
         EC_POINT_mul(w1->get_curve(), temp1, NULL, w1->get_G0(), ui, ctx); // temp1 = ui*G0
         EC_POINT_mul(w1->get_curve(), temp2, NULL, w1->get_H0(), ri, ctx); // temp2 = ri*H0
         EC_POINT_add(w1->get_curve(), Ui, temp1, temp2, ctx);
-        // 初始化Vi
-        Vi = new ElGamal_ciphertext();
-        // 生成随机数 ri'
-        BIGNUM *ri_ = BN_rand(32);
-        // V1i = ri*Ga + ri'*pkA
-        Vi->C1 = EC_POINT_new(w1->get_curve());
-        EC_POINT *temp3 = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), temp1, NULL, w1->get_Ga(), ri, ctx);   // temp1 = ri*Ga
-        EC_POINT_mul(w1->get_curve(), temp2, NULL, w1->get_pkA(), ri_, ctx); // temp2 = ri'*pkA
-        EC_POINT_add(w1->get_curve(), Vi->C1, temp1, temp2, ctx);
-        // V2i = ri'*Ha
-        Vi->C2 = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), Vi->C2, NULL, w1->get_Ha(), ri_, ctx);
+        // 加密Vi
+        Vi = ElGamal_encrypt(w1, vi, ctx);
         BN_CTX_end(ctx);
-        BN_free(ri_);
         EC_POINT_free(temp1);
         EC_POINT_free(temp2);
-        EC_POINT_free(temp3);
     }
 
     // 获取证据的字节数，包括Ui, Vi

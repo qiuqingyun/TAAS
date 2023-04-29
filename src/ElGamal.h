@@ -6,11 +6,18 @@
 class ElGamal_ciphertext
 {
 public:
-    EC_POINT *C1;
-    EC_POINT *C2;
+    EC_POINT *C1 = nullptr;
+    EC_POINT *C2 = nullptr;
 
     // 构造函数
     ElGamal_ciphertext() {}
+
+    // 拷贝构造函数
+    ElGamal_ciphertext(EC_GROUP *curve, EC_POINT *C1, EC_POINT *C2)
+    {
+        this->C1 = EC_POINT_dup(C1, curve);
+        this->C2 = EC_POINT_dup(C2, curve);
+    }
 
     // 深拷贝构造函数
     ElGamal_ciphertext(EC_GROUP *curve, ElGamal_ciphertext *ciphertext)
@@ -25,79 +32,81 @@ public:
         EC_POINT_free(C1);
         EC_POINT_free(C2);
     }
+
+    std::string to_string(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        std::stringstream ss;
+        ss << "(" << EC_POINT_point2hex(curve, C1, POINT_CONVERSION_COMPRESSED, ctx) << ", " << EC_POINT_point2hex(curve, C2, POINT_CONVERSION_COMPRESSED, ctx) << ")";
+        return ss.str();
+    }
 };
 
 // ElGamal同态加法
-ElGamal_ciphertext *ElGamal_add(EC_GROUP *curve, ElGamal_ciphertext *ciphertext1, ElGamal_ciphertext *ciphertext2, BN_CTX *ctx)
+void ElGamal_add(EC_GROUP *curve, ElGamal_ciphertext *result, ElGamal_ciphertext *ciphertext1, ElGamal_ciphertext *ciphertext2, BN_CTX *ctx)
 {
-    ElGamal_ciphertext *answer = new ElGamal_ciphertext();
-    answer->C1 = EC_POINT_new(curve);
-    answer->C2 = EC_POINT_new(curve);
-    EC_POINT_add(curve, answer->C1, ciphertext1->C1, ciphertext2->C1, ctx);
-    EC_POINT_add(curve, answer->C2, ciphertext1->C2, ciphertext2->C2, ctx);
-    return answer;
+    if (result->C1 == nullptr)
+        result->C1 = EC_POINT_new(curve);
+    if (result->C2 == nullptr)
+        result->C2 = EC_POINT_new(curve);
+    EC_POINT_add(curve, result->C1, ciphertext1->C1, ciphertext2->C1, ctx);
+    EC_POINT_add(curve, result->C2, ciphertext1->C2, ciphertext2->C2, ctx);
 }
 
-// // 生成密钥对
-// void ElGamal_keygen(EC_GROUP *curve, W1 *w1, EC_POINT **pk, BIGNUM **sk, BN_CTX *ctx)
-// {
-//     // 生成私钥
-//     *sk = BN_new();
-//     BN_rand(*sk, 256, -1, 0);
-//     // 生成公钥pk=sk*base
-//     *pk = EC_POINT_new(curve);
-//     EC_POINT_mul(curve, *pk, NULL, w1->get_Ha(), *sk, ctx);
-// }
+// ElGamal标量同态乘法
+void ElGamal_mul(EC_GROUP *curve, ElGamal_ciphertext *result, ElGamal_ciphertext *ciphertext, BIGNUM *scalar, BN_CTX *ctx)
+{
+    if (result->C1 == nullptr)
+        result->C1 = EC_POINT_new(curve);
+    if (result->C2 == nullptr)
+        result->C2 = EC_POINT_new(curve);
+    EC_POINT_mul(curve, result->C1, NULL, ciphertext->C1, scalar, ctx);
+    EC_POINT_mul(curve, result->C2, NULL, ciphertext->C2, scalar, ctx);
+}
 
-// // 加密函数
-// ElGamal_ciphertext *ElGamal_encrypt(EC_GROUP *curve, W1 *w1, EC_POINT *pk, BIGNUM *plaintext, BN_CTX *ctx)
-// {
-//     ElGamal_ciphertext *ciphertext = new ElGamal_ciphertext;
-//     ciphertext->C1 = EC_POINT_new(curve);
-//     ciphertext->C2 = EC_POINT_new(curve);
-//     // 生成随机数r
-//     BIGNUM *r = BN_new();
-//     BN_rand(r, 256, -1, 0);
-//     // 计算C1 = plaintext*Ga + r*pk
-//     EC_POINT *temp1 = EC_POINT_new(curve);
-//     EC_POINT *temp2 = EC_POINT_new(curve);
-//     EC_POINT_mul(curve, temp1, NULL, w1->get_Ga(), plaintext, ctx);
-//     EC_POINT_mul(curve, temp2, NULL, pk, r, ctx);
-//     EC_POINT_add(curve, ciphertext->C1, temp1, temp2, ctx);
-//     // 计算C2 = r*Ha
-//     EC_POINT_mul(curve, ciphertext->C2, NULL, w1->get_Ha(), r, ctx);
-//     // 释放内存
-//     BN_free(r);
-//     EC_POINT_free(temp1);
-//     EC_POINT_free(temp2);
-//     return ciphertext;
-// }
+// 生成密钥对
+void ElGamal_keygen(EC_GROUP *curve, W1 *w1, EC_POINT **pk, BIGNUM **sk, BN_CTX *ctx)
+{
+    // 生成私钥
+    *sk = BN_new();
+    BN_rand(*sk, 256, -1, 0);
+    // 生成公钥pk=sk*base
+    *pk = EC_POINT_new(curve);
+    EC_POINT_mul(curve, *pk, NULL, w1->get_Ha(), *sk, ctx);
+}
 
-// // 解密函数
-// BIGNUM *ElGamal_decrypt(EC_GROUP *curve, W1 *w1, BIGNUM *sk, ElGamal_ciphertext *ciphertext, BN_CTX *ctx)
-// {
-//     // 计算m = (C1 - sk*C2)/Ga
-//     BIGNUM *plaintext = BN_new();
-//     EC_POINT *temp1 = EC_POINT_new(curve);
-//     EC_POINT *temp2 = EC_POINT_new(curve);
-//     // 计算sk*C2
-//     EC_POINT_mul(curve, temp1, NULL, ciphertext->C2, sk, ctx);
-//     // 计算C1 - sk*C2
-//     EC_POINT_sub(curve, temp2, ciphertext->C1, temp1, ctx);
-//     // 计算Ga^(-1)
-//     EC_POINT *Ga_invert = EC_POINT_new(curve);
-//     EC_POINT_copy(Ga_invert, w1->get_Ga());
-//     EC_POINT_invert(curve, Ga_invert, ctx);
-//     // 计算m = (C1 - sk*C2)*Ga^(-1)
-//     EC_POINT_mul(curve, temp2, NULL, temp2, Ga_invert, ctx);
+// 加密函数
+ElGamal_ciphertext *ElGamal_encrypt(W1 *w1, BIGNUM *plaintext, BN_CTX *ctx)
+{
+    ElGamal_ciphertext *ciphertext = new ElGamal_ciphertext;
+    ciphertext->C1 = EC_POINT_new(w1->get_curve());
+    ciphertext->C2 = EC_POINT_new(w1->get_curve());
+    // 生成随机数r
+    BIGNUM *r = BN_new();
+    BN_rand(r, 256, -1, 0);
+    // 计算C1 = plaintext*Ga + r*pk
+    EC_POINT *temp1 = EC_POINT_new(w1->get_curve());
+    EC_POINT *temp2 = EC_POINT_new(w1->get_curve());
+    EC_POINT_mul(w1->get_curve(), temp1, NULL, w1->get_Ga(), plaintext, ctx);
+    EC_POINT_mul(w1->get_curve(), temp2, NULL, w1->get_pkA(), r, ctx);
+    EC_POINT_add(w1->get_curve(), ciphertext->C1, temp1, temp2, ctx);
+    // 计算C2 = r*Ha
+    EC_POINT_mul(w1->get_curve(), ciphertext->C2, NULL, w1->get_Ha(), r, ctx);
+    // 释放内存
+    BN_free(r);
+    EC_POINT_free(temp1);
+    EC_POINT_free(temp2);
+    return ciphertext;
+}
 
-//     EC_POINT_mul(curve, temp1, NULL, w1->get_Ga(), sk, ctx);
-//     EC_POINT_sub(curve, temp2, temp2, temp1, ctx);
-//     EC_POINT_invert(curve, temp1, w1->get_Ga(), ctx);
-//     EC_POINT_mul(curve, temp2, NULL, temp2, temp1, ctx);
-//     EC_POINT_get_affine_coordinates_GFp(curve, temp2, plaintext, NULL, ctx);
-
-//     // 释放内存
-
-//     return plaintext;
-// }
+// 解密函数
+EC_POINT *ElGamal_decrypt(W1 *w1, BIGNUM *sk, ElGamal_ciphertext *ciphertext, BN_CTX *ctx)
+{
+    // 计算 plaintext*Ga = C1 - (sk*C2)
+    EC_POINT *plaintext_Ga = EC_POINT_new(w1->get_curve());
+    EC_POINT *temp = EC_POINT_new(w1->get_curve());
+    EC_POINT_mul(w1->get_curve(), temp, NULL, ciphertext->C2, sk, ctx);
+    EC_POINT_sub(w1->get_curve(), plaintext_Ga, ciphertext->C1, temp, ctx);
+    // 释放内存
+    EC_POINT_free(temp);
+    return plaintext_Ga;
+}

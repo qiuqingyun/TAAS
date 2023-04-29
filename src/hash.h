@@ -3,7 +3,7 @@
 
 // 递归展开函数模板
 template <typename... Args>
-inline std::string bind(const Args &...args)
+inline std::string str_bind(const Args &...args)
 {
     std::string result;
     // C++17 折叠表达式 (fold expression)
