@@ -134,9 +134,12 @@ int main(int argc, char *argv[])
         auto end_user = std::chrono::high_resolution_clock::now();                                     // 记录结束时间
         duration_user += std::chrono::duration_cast<std::chrono::microseconds>(end_user - start_user); // 累加运行时间
         // 存储用户证据
+        User_evidence *temp_user_evidence = user.get_user_evidence();
+        char *temp_U = EC_POINT_point2hex(w1.get_curve(), temp_user_evidence->U, POINT_CONVERSION_COMPRESSED, ctx_user);
         U_Evidence->insert(std::make_pair(
-            EC_POINT_point2hex(w1.get_curve(), user.get_user_evidence()->U, POINT_CONVERSION_COMPRESSED, ctx_user),
-            user.get_user_evidence()));
+            temp_U,
+            temp_user_evidence));
+        OPENSSL_free(temp_U);
         evidence_size += user.get_evidence_size(ctx_user);
         // 释放内存
         BN_CTX_free(ctx_user);
@@ -189,6 +192,34 @@ int main(int argc, char *argv[])
     {
         std::cout << "round_P5 failed" << std::endl;
     }
+
+    // 释放内存
+    delete message_p1;
+    delete message_a2;
+    delete message_p3;
+    delete message_a4;
+    // 释放ctx,user_data_advertiser,user_id_platform,Sum,Sum_d,U_Evidence
+    // 循环释放user_data_advertiser
+    for (int i = 0; i < user_count_advertiser; i++)
+    {
+        delete user_data_advertiser[i];
+    }
+    delete[] user_data_advertiser;
+    // 循环释放user_id_platform
+    for (int i = 0; i < user_count_platform; i++)
+    {
+        BN_free(user_id_platform[i]);
+    }
+    delete[] user_id_platform;
+    // 释放U_Evidence的所有value
+    for (auto it = U_Evidence->begin(); it != U_Evidence->end(); it++)
+    {
+        delete it->second;
+    }
+    delete U_Evidence;
+    BN_free(Sum);
+    EC_POINT_free(Sum_d);
+    BN_CTX_free(ctx);
 
     // 以JSON格式输出结果
     {

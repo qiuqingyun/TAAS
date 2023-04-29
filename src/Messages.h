@@ -33,6 +33,17 @@ public:
     EC_POINT *U;
     ElGamal_ciphertext *V;
 
+    // 构造函数
+    User_evidence() {}
+
+    // 深拷贝构造函数
+    User_evidence(EC_GROUP *curve, EC_POINT *U, ElGamal_ciphertext *V)
+    {
+        this->U = EC_POINT_new(curve);
+        EC_POINT_copy(this->U, U);
+        this->V = new ElGamal_ciphertext(curve, V);
+    }
+
     // 释放内存
     ~User_evidence()
     {
@@ -186,6 +197,7 @@ public:
 class Message_P1
 {
 public:
+    int user_count_platform;
     EC_POINT *P_ = nullptr;
     EC_POINT **P = nullptr;
     BIGNUM *Z_hat = nullptr;
@@ -193,23 +205,54 @@ public:
     Message_P1() {}
 
     // 使用COPY深拷贝构造函数
-    Message_P1(EC_GROUP *curve, int user_count, Message_P1 *message)
+    Message_P1(EC_GROUP *curve, Message_P1 *message)
     {
+        user_count_platform = message->user_count_platform;
         P_ = EC_POINT_new(curve);
         EC_POINT_copy(P_, message->P_);
-        P = new EC_POINT *[user_count];
-        for (int i = 0; i < user_count; i++)
+        P = new EC_POINT *[user_count_platform];
+        for (int i = 0; i < user_count_platform; i++)
         {
             P[i] = EC_POINT_new(curve);
             EC_POINT_copy(P[i], message->P[i]);
         }
         Z_hat = BN_dup(message->Z_hat);
     }
+
+    // 释放内存
+    ~Message_P1()
+    {
+        if (P_ != nullptr)
+        {
+            EC_POINT_free(P_);
+            P_ = nullptr;
+        }
+        if (P != nullptr)
+        {
+            for (int i = 0; i < user_count_platform; i++)
+            {
+                if (P[i] != nullptr)
+                {
+                    EC_POINT_free(P[i]);
+                    P[i] = nullptr;
+                }
+            }
+            delete[] P;
+            P = nullptr;
+        }
+        if (Z_hat != nullptr)
+        {
+            BN_free(Z_hat);
+            Z_hat = nullptr;
+        }
+    }
 };
 
 class Message_A2
 {
 public:
+    int user_count_advertiser;
+    int user_count_platform;
     ElGamal_ciphertext **C = nullptr;
     ElGamal_ciphertext **C_ = nullptr;
     EC_POINT **CA = nullptr;
@@ -227,8 +270,10 @@ public:
     Message_A2() {}
 
     // 使用COPY深拷贝构造函数
-    Message_A2(EC_GROUP *curve, int user_count_advertiser, int user_count_platform, Message_A2 *message)
+    Message_A2(EC_GROUP *curve, Message_A2 *message)
     {
+        user_count_advertiser = message->user_count_advertiser;
+        user_count_platform = message->user_count_platform;
         C = new ElGamal_ciphertext *[user_count_platform];
         C_ = new ElGamal_ciphertext *[user_count_platform];
         CA = new EC_POINT *[user_count_platform];
@@ -264,11 +309,140 @@ public:
         EC_POINT_copy(GS, message->GS);
         EC_POINT_copy(pkA_, message->pkA_);
     }
+
+    // 释放内存
+    ~Message_A2()
+    {
+        if (C != nullptr)
+        {
+            for (int i = 0; i < user_count_platform; i++)
+            {
+                if (C[i] != nullptr)
+                {
+                    delete C[i];
+                    C[i] = nullptr;
+                }
+            }
+            delete[] C;
+            C = nullptr;
+        }
+        if (C_ != nullptr)
+        {
+            for (int i = 0; i < user_count_platform; i++)
+            {
+                if (C_[i] != nullptr)
+                {
+                    delete C_[i];
+                    C_[i] = nullptr;
+                }
+            }
+            delete[] C_;
+            C_ = nullptr;
+        }
+        if (CA != nullptr)
+        {
+            for (int i = 0; i < user_count_platform; i++)
+            {
+                if (CA[i] != nullptr)
+                {
+                    EC_POINT_free(CA[i]);
+                    CA[i] = nullptr;
+                }
+            }
+            delete[] CA;
+            CA = nullptr;
+        }
+        if (CB != nullptr)
+        {
+            for (int i = 0; i < user_count_platform; i++)
+            {
+                if (CB[i] != nullptr)
+                {
+                    EC_POINT_free(CB[i]);
+                    CB[i] = nullptr;
+                }
+            }
+            delete[] CB;
+            CB = nullptr;
+        }
+        if (CD_ != nullptr)
+        {
+            for (int i = 0; i < user_count_platform; i++)
+            {
+                if (CD_[i] != nullptr)
+                {
+                    EC_POINT_free(CD_[i]);
+                    CD_[i] = nullptr;
+                }
+            }
+            delete[] CD_;
+            CD_ = nullptr;
+        }
+        if (A != nullptr)
+        {
+            for (int i = 0; i < user_count_advertiser; i++)
+            {
+                if (A[i] != nullptr)
+                {
+                    EC_POINT_free(A[i]);
+                    A[i] = nullptr;
+                }
+            }
+            delete[] A;
+            A = nullptr;
+        }
+        if (E != nullptr)
+        {
+            BN_free(E);
+            E = nullptr;
+        }
+        if (F != nullptr)
+        {
+            delete F;
+            F = nullptr;
+        }
+        if (Q != nullptr)
+        {
+            for (int i = 0; i < user_count_platform; i++)
+            {
+                if (Q[i] != nullptr)
+                {
+                    EC_POINT_free(Q[i]);
+                    Q[i] = nullptr;
+                }
+            }
+            delete[] Q;
+            Q = nullptr;
+        }
+        // 释放GS_,GS,pkA_,skA_hat
+        if (GS_ != nullptr)
+        {
+            EC_POINT_free(GS_);
+            GS_ = nullptr;
+        }
+        if (GS != nullptr)
+        {
+            EC_POINT_free(GS);
+            GS = nullptr;
+        }
+        if (pkA_ != nullptr)
+        {
+            EC_POINT_free(pkA_);
+            pkA_ = nullptr;
+        }
+        if (skA_hat != nullptr)
+        {
+            BN_free(skA_hat);
+            skA_hat = nullptr;
+        }
+    }
 };
 
 class Message_P3
 {
 public:
+    int user_count_advertiser;
+    int user_count_platform;
     EC_POINT **J = nullptr;
     EC_POINT **L = nullptr;
     BIGNUM *k2_hat = nullptr;
@@ -283,8 +457,10 @@ public:
     Message_P3() {}
 
     // 使用COPY深拷贝构造函数
-    Message_P3(EC_GROUP *curve, int user_count_advertiser, int user_count_platform, Message_P3 *message)
+    Message_P3(EC_GROUP *curve, Message_P3 *message)
     {
+        user_count_advertiser = message->user_count_advertiser;
+        user_count_platform = message->user_count_platform;
         J = new EC_POINT *[user_count_platform];
         L = new EC_POINT *[user_count_advertiser];
         for (int j = 0; j < user_count_platform; j++)
@@ -311,6 +487,77 @@ public:
         EC_POINT_copy(C3_, message->C3_);
         EC_POINT_copy(Q_, message->Q_);
         EC_POINT_copy(A_, message->A_);
+    }
+
+    // 释放内存
+    ~Message_P3()
+    {
+        if (J != nullptr)
+        {
+            for (int j = 0; j < user_count_platform; j++)
+            {
+                if (J[j] != nullptr)
+                {
+                    EC_POINT_free(J[j]);
+                    J[j] = nullptr;
+                }
+            }
+            delete[] J;
+            J = nullptr;
+        }
+        if (L != nullptr)
+        {
+            for (int i = 0; i < user_count_advertiser; i++)
+            {
+                if (L[i] != nullptr)
+                {
+                    EC_POINT_free(L[i]);
+                    L[i] = nullptr;
+                }
+            }
+            delete[] L;
+            L = nullptr;
+        }
+        if (k2_hat != nullptr)
+        {
+            BN_free(k2_hat);
+            k2_hat = nullptr;
+        }
+        if (C2 != nullptr)
+        {
+            EC_POINT_free(C2);
+            C2 = nullptr;
+        }
+        if (C2_ != nullptr)
+        {
+            EC_POINT_free(C2_);
+            C2_ = nullptr;
+        }
+        if (C3 != nullptr)
+        {
+            EC_POINT_free(C3);
+            C3 = nullptr;
+        }
+        if (C3_ != nullptr)
+        {
+            EC_POINT_free(C3_);
+            C3_ = nullptr;
+        }
+        if (kq_hat != nullptr)
+        {
+            BN_free(kq_hat);
+            kq_hat = nullptr;
+        }
+        if (Q_ != nullptr)
+        {
+            EC_POINT_free(Q_);
+            Q_ = nullptr;
+        }
+        if (A_ != nullptr)
+        {
+            EC_POINT_free(A_);
+            A_ = nullptr;
+        }
     }
 };
 
@@ -339,5 +586,40 @@ public:
         EC_POINT_copy(GK, message->GK);
         EC_POINT_copy(GK_, message->GK_);
         EC_POINT_copy(pkA__, message->pkA__);
+    }
+
+    // 释放内存
+    ~Message_A4()
+    {
+        if (Sum_D != nullptr)
+        {
+            EC_POINT_free(Sum_D);
+            Sum_D = nullptr;
+        }
+        if (Sum != nullptr)
+        {
+            BN_free(Sum);
+            Sum = nullptr;
+        }
+        if (GK != nullptr)
+        {
+            EC_POINT_free(GK);
+            GK = nullptr;
+        }
+        if (GK_ != nullptr)
+        {
+            EC_POINT_free(GK_);
+            GK_ = nullptr;
+        }
+        if (pkA__ != nullptr)
+        {
+            EC_POINT_free(pkA__);
+            pkA__ = nullptr;
+        }
+        if (skA_hat_ != nullptr)
+        {
+            BN_free(skA_hat_);
+            skA_hat_ = nullptr;
+        }
     }
 };

@@ -83,9 +83,6 @@ public:
     }
     User_evidence *get_user_evidence()
     {
-        User_evidence *user_evidence = new User_evidence;
-        user_evidence->U = EC_POINT_dup(Ui, w1->get_curve());
-        user_evidence->V = new ElGamal_ciphertext(w1->get_curve(), Vi);
-        return user_evidence;
+        return new User_evidence(w1->get_curve(), Ui, Vi);
     }
 };

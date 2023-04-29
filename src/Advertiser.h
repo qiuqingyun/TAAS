@@ -19,7 +19,7 @@ class Advertiser
     std::unordered_map<std::string, User_evidence *> *U_Evidence = nullptr;
 
     // 共享变量
-    BIGNUM *k1 = nullptr;
+    BIGNUM *k1 = BN_rand(256);
     EC_POINT **A = nullptr;
     std::unordered_map<std::string, ElGamal_ciphertext *> *A_V = nullptr;
     BIGNUM *skA_ = nullptr;
@@ -56,6 +56,34 @@ public:
         }
         if (proof != nullptr)
             delete proof;
+        if (message_a2 != nullptr)
+            delete message_a2;
+        if (message_a4 != nullptr)
+            delete message_a4;
+        // 释放k1，A，A_V，skA_，Sum_d
+        if (k1 != nullptr)
+            BN_free(k1);
+        if (A != nullptr)
+        {
+            for (int i = 0; i < user_count_advertiser; i++)
+            {
+                EC_POINT_free(A[i]);
+            }
+            delete[] A;
+        }
+        if (A_V != nullptr)
+        {
+            for (int i = 0; i < user_count_advertiser; i++)
+            {
+                for (auto it = A_V[i].begin(); it != A_V[i].end(); it++)
+                {
+                    delete it->second;
+                }
+            }
+            delete[] A_V;
+        }
+        if (skA_ != nullptr)
+            BN_free(skA_);
     }
 
     // 计算证明
@@ -65,8 +93,7 @@ public:
         this->proof = new Proof();
         proof->user_count = user_count_advertiser;
 
-        // 生成随机数k1，k'，x'和y'
-        k1 = BN_rand(256);
+        // 生成随机数k'，x'和y'
         BIGNUM *k_ = BN_rand(256);
         BIGNUM *x_ = BN_rand(256);
         BIGNUM *y_ = BN_rand(256);
@@ -168,9 +195,13 @@ public:
                 BN_mod_add(proof->y_hat, proof->y_hat, temp_y_hat, w1->get_order(), temp_ctx);
 
                 // 利用 Ui 从 U_Evidence 中找到对应的证据Vi
-                ElGamal_ciphertext *Vi = U_Evidence->at(EC_POINT_point2hex(w1->get_curve(), temp_Ui, POINT_CONVERSION_COMPRESSED, ctx))->V;
+                char *temp = EC_POINT_point2hex(w1->get_curve(), temp_Ui, POINT_CONVERSION_COMPRESSED, temp_ctx);
+                ElGamal_ciphertext *Vi = U_Evidence->at(temp)->V;
+                OPENSSL_free(temp);
                 // 保存 Ai 与 Vi 的关系
-                A_V->insert(std::make_pair(EC_POINT_point2hex(w1->get_curve(), A[i], POINT_CONVERSION_COMPRESSED, ctx), Vi));
+                temp = EC_POINT_point2hex(w1->get_curve(), temp_Ai, POINT_CONVERSION_COMPRESSED, temp_ctx);
+                A_V->insert(std::make_pair(temp, new ElGamal_ciphertext(w1->get_curve(), Vi)));
+                OPENSSL_free(temp);
             }
             // 释放临时变量
             EC_POINT_free(temp_Ui1);
@@ -246,6 +277,8 @@ public:
     int round_A2(Message_P1 *message, BN_CTX *ctx)
     {
         message_a2 = new Message_A2();
+        message_a2->user_count_advertiser = user_count_advertiser;
+        message_a2->user_count_platform = user_count_platform;
         // 验证上一轮的计算
         {
             // 验证 Z_hat*G2 = P' + t1*P1 + t2*P2 + ... + tn*Pn
@@ -259,10 +292,12 @@ public:
             for (int j = 0; j < user_count_platform; ++j)
             {
                 // 计算哈希值 t_j=H(j||W1||P')
+                char *temp_P_ = EC_POINT_point2hex(w1->get_curve(), message->P_, POINT_CONVERSION_COMPRESSED, ctx);
                 std::string combined = str_bind(
                     std::to_string(j),
                     w1->to_string(ctx),
-                    EC_POINT_point2hex(w1->get_curve(), message->P_, POINT_CONVERSION_COMPRESSED, ctx));
+                    temp_P_);
+                OPENSSL_free(temp_P_);
                 BIGNUM *t_j = BN_hash(combined);
                 // 计算 t_j*Pj
                 EC_POINT *temp = EC_POINT_new(w1->get_curve());
@@ -279,6 +314,8 @@ public:
                 std::cout << "failed: A2" << std::endl;
                 return 1;
             }
+            EC_POINT_free(left);
+            EC_POINT_free(right);
         }
         // 选择 m 个随机数 {r1,r2,...,rm}
         BIGNUM **r = new BIGNUM *[user_count_platform];
@@ -356,9 +393,11 @@ public:
             EC_POINT_free(temp);
         }
         // 计算哈希值 x=H(W1||CA1)
+        char *temp_CA = EC_POINT_point2hex(w1->get_curve(), message_a2->CA[0], POINT_CONVERSION_COMPRESSED, ctx);
         std::string combined = str_bind(
             w1->to_string(ctx),
-            EC_POINT_point2hex(w1->get_curve(), message_a2->CA[0], POINT_CONVERSION_COMPRESSED, ctx));
+            temp_CA);
+        OPENSSL_free(temp_CA);
         BIGNUM *x = BN_hash(combined);
         // 保存密文CB
         message_a2->CB = new EC_POINT *[user_count_platform];
@@ -379,16 +418,18 @@ public:
             EC_POINT_free(temp);
         }
         // 计算哈希值 y=H(1||W1||CB1)
+        char *temp_CB = EC_POINT_point2hex(w1->get_curve(), message_a2->CB[0], POINT_CONVERSION_COMPRESSED, ctx);
         combined = str_bind(
             "1",
             w1->to_string(ctx),
-            EC_POINT_point2hex(w1->get_curve(), message_a2->CB[0], POINT_CONVERSION_COMPRESSED, ctx));
+            temp_CB);
         BIGNUM *y = BN_hash(combined);
         // 计算哈希值 z=H(2||W1||CB1)
         combined = str_bind(
             "2",
             w1->to_string(ctx),
-            EC_POINT_point2hex(w1->get_curve(), message_a2->CB[0], POINT_CONVERSION_COMPRESSED, ctx));
+            temp_CB);
+        OPENSSL_free(temp_CB);
         BIGNUM *z = BN_hash(combined);
         // 设置 E=1
         message_a2->E = BN_new();
@@ -460,10 +501,14 @@ public:
         message_a2->pkA_ = EC_POINT_new(w1->get_curve());
         EC_POINT_mul(w1->get_curve(), message_a2->pkA_, NULL, w1->get_Ha(), skA_, ctx);
         // 计算哈希值 ts=H(W1||GS'||pkA')
+        char *temp_GS = EC_POINT_point2hex(w1->get_curve(), message_a2->GS_, POINT_CONVERSION_COMPRESSED, ctx);
+        char *temp_pkA = EC_POINT_point2hex(w1->get_curve(), message_a2->pkA_, POINT_CONVERSION_COMPRESSED, ctx);
         combined = str_bind(
             w1->to_string(ctx),
-            EC_POINT_point2hex(w1->get_curve(), message_a2->GS_, POINT_CONVERSION_COMPRESSED, ctx),
-            EC_POINT_point2hex(w1->get_curve(), message_a2->pkA_, POINT_CONVERSION_COMPRESSED, ctx));
+            temp_GS,
+            temp_pkA);
+        OPENSSL_free(temp_GS);
+        OPENSSL_free(temp_pkA);
         BIGNUM *ts = BN_hash(combined);
         // 计算 skA_hat = ts*skA + skA'
         message_a2->skA_hat = BN_new();
@@ -509,14 +554,18 @@ public:
         // 验证上一轮的计算
         {
             // 计算 tq=H(W1||C2')
+            char *temp_C2_ = EC_POINT_point2hex(w1->get_curve(), message->C2_, POINT_CONVERSION_COMPRESSED, ctx);
             std::string combine = str_bind(
                 w1->to_string(ctx),
-                EC_POINT_point2hex(w1->get_curve(), message->C2_, POINT_CONVERSION_COMPRESSED, ctx));
+                temp_C2_);
+            OPENSSL_free(temp_C2_);
             BIGNUM *tq = BN_hash(combine);
             // 计算 ta=H(W1||C3')
+            char *temp_C3_ = EC_POINT_point2hex(w1->get_curve(), message->C3_, POINT_CONVERSION_COMPRESSED, ctx);
             combine = str_bind(
                 w1->to_string(ctx),
-                EC_POINT_point2hex(w1->get_curve(), message->C3_, POINT_CONVERSION_COMPRESSED, ctx));
+                temp_C3_);
+            OPENSSL_free(temp_C3_);
             BIGNUM *ta = BN_hash(combine);
             // 验证 k2_hat*Q' = tq*C2 + C2'
             EC_POINT *left = EC_POINT_new(w1->get_curve());
@@ -540,26 +589,39 @@ public:
                 std::cout << "A4: kq_hat*A' != ta*C3 + C3'" << std::endl;
                 return 1;
             }
+            // 释放内存
+            BN_free(tq);
+            BN_free(ta);
+            EC_POINT_free(left);
+            EC_POINT_free(right);
         }
         // 使用unordered_map存储Li与Ai的关系，并将其分配在堆内存中
         std::unordered_map<std::string, std::string> *L_A = new std::unordered_map<std::string, std::string>();
         for (int i = 0; i < user_count_advertiser; ++i)
         {
+            char *temp_L = EC_POINT_point2hex(w1->get_curve(), message->L[i], POINT_CONVERSION_COMPRESSED, ctx);
+            char *temp_A = EC_POINT_point2hex(w1->get_curve(), A[i], POINT_CONVERSION_COMPRESSED, ctx);
             L_A->insert(std::make_pair(
-                EC_POINT_point2hex(w1->get_curve(), message->L[i], POINT_CONVERSION_COMPRESSED, ctx),
-                EC_POINT_point2hex(w1->get_curve(), A[i], POINT_CONVERSION_COMPRESSED, ctx)));
+                temp_L,
+                temp_A));
+            OPENSSL_free(temp_L);
+            OPENSSL_free(temp_A);
         }
         // 将向量J与一个空ElGamal_ciphertext组合为pair，并存入向量X中
         std::string *X = new std::string[user_count_platform];
         for (int j = 0; j < user_count_platform; ++j)
         {
-            X[j] = EC_POINT_point2hex(w1->get_curve(), message->J[j], POINT_CONVERSION_COMPRESSED, ctx);
+            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message->J[j], POINT_CONVERSION_COMPRESSED, ctx);
+            X[j] = temp_J;
+            OPENSSL_free(temp_J);
         }
         // 将向量L与向量V中的元素一一组合为pair，并存入向量Y中
         std::string *Y = new std::string[user_count_advertiser];
         for (int i = 0; i < user_count_advertiser; ++i)
         {
-            Y[i] = EC_POINT_point2hex(w1->get_curve(), message->L[i], POINT_CONVERSION_COMPRESSED, ctx);
+            char *temp_L = EC_POINT_point2hex(w1->get_curve(), message->L[i], POINT_CONVERSION_COMPRESSED, ctx);
+            Y[i] = temp_L;
+            OPENSSL_free(temp_L);
         }
         // 对向量X进行排序
         std::sort(X, X + user_count_platform);
@@ -613,10 +675,14 @@ public:
         message_a4->pkA__ = EC_POINT_new(w1->get_curve());
         EC_POINT_mul(w1->get_curve(), message_a4->pkA__, NULL, w1->get_Ha(), skA__, ctx);
         // 计算哈希值 tb = H(W1||GK'||pkA'')
+        char *temp_GK_ = EC_POINT_point2hex(w1->get_curve(), message_a4->GK_, POINT_CONVERSION_COMPRESSED, ctx);
+        char *temp_pkA__ = EC_POINT_point2hex(w1->get_curve(), message_a4->pkA__, POINT_CONVERSION_COMPRESSED, ctx);
         std::string combine = str_bind(
             w1->to_string(ctx),
-            EC_POINT_point2hex(w1->get_curve(), message_a4->GK_, POINT_CONVERSION_COMPRESSED, ctx),
-            EC_POINT_point2hex(w1->get_curve(), message_a4->pkA__, POINT_CONVERSION_COMPRESSED, ctx));
+            temp_GK_,
+            temp_pkA__);
+        OPENSSL_free(temp_GK_);
+        OPENSSL_free(temp_pkA__);
         BIGNUM *tb = BN_hash(combine);
         // 计算 skA_hat = tb*skA + skA'
         message_a4->skA_hat_ = BN_new();
@@ -660,6 +726,6 @@ public:
     // set Sum_d
     void debug_set_Sum_d(EC_POINT *Sum_d) { this->Sum_d = Sum_d; }
 
-    Message_A2 *get_message_a2() { return new Message_A2(w1->get_curve(), user_count_advertiser, user_count_platform, message_a2); }
+    Message_A2 *get_message_a2() { return new Message_A2(w1->get_curve(), message_a2); }
     Message_A4 *get_message_a4() { return new Message_A4(w1->get_curve(), message_a4); }
 };
