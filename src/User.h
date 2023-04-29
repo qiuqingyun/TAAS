@@ -3,45 +3,7 @@
 #include "base.h"
 #include "ec.h"
 #include "ElGamal.h"
-
-class User_data
-{
-public:
-    BIGNUM *u, *r, *v;
-    // 构造函数
-    User_data() {}
-
-    // 深拷贝构造函数
-    User_data(User_data *user_data)
-    {
-        u = BN_dup(user_data->u);
-        r = BN_dup(user_data->r);
-        if (user_data->v != NULL)
-            v = BN_dup(user_data->v);
-    }
-
-    // 释放内存
-    ~User_data()
-    {
-        BN_free(u);
-        BN_free(r);
-        BN_free(v);
-    }
-};
-
-class User_evidence
-{
-public:
-    EC_POINT *U;
-    ElGamal_ciphertext *V;
-
-    // 释放内存
-    ~User_evidence()
-    {
-        EC_POINT_free(U);
-        delete V;
-    }
-};
+#include "Messages.h"
 
 class User
 {
@@ -116,6 +78,7 @@ public:
         User_data *user_data = new User_data;
         user_data->u = BN_dup(ui);
         user_data->r = BN_dup(ri);
+        user_data->v = BN_dup(vi);
         return user_data;
     }
     User_evidence *get_user_evidence()
