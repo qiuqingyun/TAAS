@@ -158,6 +158,7 @@ public:
 
     void round_P1(BN_CTX *ctx)
     {
+        BN_CTX_start(ctx);
         message_p1 = new Message_P1();
         message_p1->user_count_platform = user_count_platform;
         // 选择随机数Z'
@@ -193,10 +194,12 @@ public:
         }
         // 释放内存
         BN_free(Z_);
+        BN_CTX_end(ctx);
     }
 
     int round_P3(Message_A2 *message, BN_CTX *ctx)
     {
+        BN_CTX_start(ctx);
         message_p3 = new Message_P3();
         message_p3->user_count_advertiser = user_count_advertiser;
         message_p3->user_count_platform = user_count_platform;
@@ -453,11 +456,13 @@ public:
         BN_free(tq);
         BN_free(kq);
         BN_free(ta);
+        BN_CTX_end(ctx);
         return 0;
     }
 
     int round_P5(Message_A4 *message, BN_CTX *ctx)
     {
+        BN_CTX_start(ctx);
         // 计算哈希值 tb = H(W1||GK'||pkA'')
         char *temp_GK_ = EC_POINT_point2hex(w1->get_curve(), message->GK_, POINT_CONVERSION_COMPRESSED, ctx);
         char *temp_pkA__ = EC_POINT_point2hex(w1->get_curve(), message->pkA__, POINT_CONVERSION_COMPRESSED, ctx);
@@ -493,6 +498,7 @@ public:
         EC_POINT_free(left);
         EC_POINT_free(right);
         BN_free(tb);
+        BN_CTX_end(ctx);
         return 0;
     }
 

@@ -276,6 +276,7 @@ public:
 
     int round_A2(Message_P1 *message, BN_CTX *ctx)
     {
+        BN_CTX_start(ctx);
         message_a2 = new Message_A2();
         message_a2->user_count_advertiser = user_count_advertiser;
         message_a2->user_count_platform = user_count_platform;
@@ -545,11 +546,13 @@ public:
         delete[] pi_;
         delete[] pi;
         delete[] B;
+        BN_CTX_end(ctx);
         return 0;
     }
 
     int round_A4(Message_P3 *message, BN_CTX *ctx)
     {
+        BN_CTX_start(ctx);
         message_a4 = new Message_A4();
         // 验证上一轮的计算
         {
@@ -696,6 +699,7 @@ public:
         delete Sum_E;
         BN_free(skA__);
         BN_free(tb);
+        BN_CTX_end(ctx);
         return 0;
     }
 

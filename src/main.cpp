@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
     // 获取证明
     Proof *proof_batch = new Proof(w1.get_curve(), advertiser.get_proof());
     // 计算证明的尺寸
-    size_t proof_size_batch = proof_batch->get_proof_size(user_count_advertiser, w1.get_curve(), ctx);
+    size_t proof_size_batch = proof_batch->get_size(w1.get_curve(), ctx);
     // 广告平台
     auto start_platform = std::chrono::high_resolution_clock::now(); // 记录开始时间
     Platform platform(&w1, user_count_advertiser, user_count_platform, user_id_platform);
@@ -221,6 +221,15 @@ int main(int argc, char *argv[])
     }
     auto end_platform_P5 = std::chrono::high_resolution_clock::now();                                                       // 记录结束时间
     auto duration_platform_P5 = std::chrono::duration_cast<std::chrono::microseconds>(end_platform_P5 - start_platform_P5); // 计算运行时间
+    // psi的总时间
+    auto duration_psi = duration_platform_A1 + duration_advertiser_A2 + duration_platform_P3 + duration_advertiser_A4 + duration_platform_P5;
+    // 计算消息的尺寸
+    size_t message_p1_size = message_p1->get_size(w1.get_curve(), ctx);
+    size_t message_a2_size = message_a2->get_size(w1.get_curve(), ctx);
+    size_t message_p3_size = message_p3->get_size(w1.get_curve(), ctx);
+    size_t message_a4_size = message_a4->get_size(w1.get_curve(), ctx);
+    // 消息的总尺寸
+    size_t message_size = message_p1_size + message_a2_size + message_p3_size + message_a4_size;
 
     // 释放内存
     delete message_p1;
@@ -265,18 +274,24 @@ int main(int argc, char *argv[])
         std::cout << "\"evidence_gen\": " << duration_user.count() / time_scale << ", ";           // 用户生成证据时间
         std::cout << "\"prove_gen\": " << duration_advertiser_batch.count() / time_scale << ", ";  // 广告主生成证明时间
         std::cout << "\"prove_verify\": " << duration_platform_batch.count() / time_scale << ", "; // 广告平台验证证明时间
-        std::cout << "\"PSI_P1\": " << duration_platform_A1.count() / time_scale << ", ";          // 广告平台P1时间
-        std::cout << "\"PSI_A2\": " << duration_advertiser_A2.count() / time_scale << ", ";        // 广告主A2时间
-        std::cout << "\"PSI_P3\": " << duration_platform_P3.count() / time_scale << ", ";          // 广告平台P3时间
-        std::cout << "\"PSI_A4\": " << duration_advertiser_A4.count() / time_scale << ", ";        // 广告主A4时间
-        std::cout << "\"PSI_P5\": " << duration_platform_P5.count() / time_scale << " ";          // 广告平台P5时间
+        std::cout << "\"psi\": " << duration_psi.count() / time_scale << ", ";                     // psi总时间
+        std::cout << "\"psi_P1\": " << duration_platform_A1.count() / time_scale << ", ";          // psi_P1时间
+        std::cout << "\"psi_A2\": " << duration_advertiser_A2.count() / time_scale << ", ";        // psi_A2时间
+        std::cout << "\"psi_P3\": " << duration_platform_P3.count() / time_scale << ", ";          // psi_P3时间
+        std::cout << "\"psi_A4\": " << duration_advertiser_A4.count() / time_scale << ", ";        // psi_A4时间
+        std::cout << "\"psi_P5\": " << duration_platform_P5.count() / time_scale << " ";           // psi_P5时间
         std::cout << "},";
         // size对象里包含证明尺寸
         // 设置输出精度
         std::cout << std::fixed << std::setprecision(3);
         std::cout << "\"size\": {";
         std::cout << "\"evidence\": " << evidence_size / size_scale << ", "; // 证据尺寸
-        std::cout << "\"proof\": " << proof_size_batch / size_scale << " "; // 批量模式证明尺寸
+        std::cout << "\"proof\": " << proof_size_batch / size_scale << ", "; // 证明尺寸
+        std::cout << "\"psi\": " << message_size / size_scale << ", ";       // psi总尺寸
+        std::cout << "\"psi_P1\": " << message_p1_size / size_scale << ", "; // psi_P1消息尺寸
+        std::cout << "\"psi_A2\": " << message_a2_size / size_scale << ", "; // psi_A2消息尺寸
+        std::cout << "\"psi_P3\": " << message_p3_size / size_scale << ", "; // psi_P3消息尺寸
+        std::cout << "\"psi_A4\": " << message_a4_size / size_scale << " ";  // psi_A4消息尺寸
         std::cout << "}";
         std::cout << "}";
         std::cout << "}" << std::endl;
@@ -341,7 +356,7 @@ int main(int argc, char *argv[])
 //     // 获取证明
 //     Proof *proof_batch = new Proof(w1.get_curve(), advertiser.get_proof());
 //     // 计算证明的尺寸
-//     size_t proof_size_batch = proof_batch->get_proof_size(user_count, w1.get_curve(), ctx);
+//     size_t proof_size_batch = proof_batch->get_size(user_count, w1.get_curve(), ctx);
 //     // 广告平台
 //     auto start_platform = std::chrono::high_resolution_clock::now(); // 记录开始时间
 //     Platform platform(&w1, user_count, proof_batch);
@@ -372,7 +387,7 @@ int main(int argc, char *argv[])
 //         // 获取证明
 //         Proof *proof_single = new Proof(w1.get_curve(), advertiser_single.get_proof());
 //         // 累加证明的尺寸
-//         proof_size_single += proof_single->get_proof_size(1, w1.get_curve(), ctx);
+//         proof_size_single += proof_single->get_size(1, w1.get_curve(), ctx);
 //         // 广告平台
 //         Platform platform_single(&w1, 1, proof_single);
 //         auto start_platform_single = std::chrono::high_resolution_clock::now(); // 记录广告平台开始时间

@@ -122,7 +122,7 @@ public:
     }
 
     // 获取Proof的字节数
-    size_t get_proof_size(int user_count, EC_GROUP *curve, BN_CTX *ctx)
+    size_t get_size(EC_GROUP *curve, BN_CTX *ctx)
     {
         BN_CTX_start(ctx);
         size_t size = 0;
@@ -245,6 +245,21 @@ public:
             BN_free(Z_hat);
             Z_hat = nullptr;
         }
+    }
+
+    // 获取字节数
+    size_t get_size(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        size_t size = 0;
+        size += EC_POINT_point2oct(curve, P_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        for (int i = 0; i < user_count_platform; i++)
+        {
+            size += EC_POINT_point2oct(curve, P[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        }
+        size += BN_num_bytes(Z_hat);
+        BN_CTX_end(ctx);
+        return size;
     }
 };
 
@@ -436,6 +451,35 @@ public:
             skA_hat = nullptr;
         }
     }
+
+    // 获取字节数
+    size_t get_size(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        size_t size = 0;
+        // 计算C,C_,CA,CB,CD_,A,E,F,Q,GS_,GS,pkA_,skA_hat的字节数
+        size += EC_POINT_point2oct(curve, GS_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GS, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, pkA_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += BN_bn2mpi(skA_hat, NULL);
+        size += BN_bn2mpi(E, NULL);
+        size += F->get_size(curve, ctx);
+        for (int j = 0; j < user_count_platform; j++)
+        {
+            size += C[j]->get_size(curve, ctx);
+            size += C_[j]->get_size(curve, ctx);
+            size += EC_POINT_point2oct(curve, CA[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CB[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CD_[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, Q[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        }
+        for (int i = 0; i < user_count_advertiser; i++)
+        {
+            size += EC_POINT_point2oct(curve, A[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        }
+        BN_CTX_end(ctx);
+        return size;
+    }
 };
 
 class Message_P3
@@ -559,6 +603,31 @@ public:
             A_ = nullptr;
         }
     }
+
+    // 获取字节数
+    size_t get_size(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        size_t size = 0;
+        for (int j = 0; j < user_count_platform; j++)
+        {
+            size += EC_POINT_point2oct(curve, J[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        }
+        for (int i = 0; i < user_count_advertiser; i++)
+        {
+            size += EC_POINT_point2oct(curve, L[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        }
+        size += BN_bn2mpi(k2_hat, NULL);
+        size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C3, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C3_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += BN_bn2mpi(kq_hat, NULL);
+        size += EC_POINT_point2oct(curve, Q_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, A_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        BN_CTX_end(ctx);
+        return size;
+    }
 };
 
 class Message_A4
@@ -621,5 +690,26 @@ public:
             BN_free(skA_hat_);
             skA_hat_ = nullptr;
         }
+    }
+
+    // 获取字节数
+    size_t get_size(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        size_t size = 0;
+        if (Sum_D != nullptr)
+        {
+            size += EC_POINT_point2oct(curve, Sum_D, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        }
+        if (Sum != nullptr)
+        {
+            size += BN_bn2mpi(Sum, NULL);
+        }
+        size += EC_POINT_point2oct(curve, GK, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GK_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, pkA__, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += BN_bn2mpi(skA_hat_, NULL);
+        BN_CTX_end(ctx);
+        return size;
     }
 };

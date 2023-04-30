@@ -39,6 +39,12 @@ public:
         ss << "(" << EC_POINT_point2hex(curve, C1, POINT_CONVERSION_COMPRESSED, ctx) << ", " << EC_POINT_point2hex(curve, C2, POINT_CONVERSION_COMPRESSED, ctx) << ")";
         return ss.str();
     }
+
+    // 获取字节数
+    size_t get_size(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        return EC_POINT_point2oct(curve, C1, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx) + EC_POINT_point2oct(curve, C2, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+    }
 };
 
 // ElGamal同态加法
