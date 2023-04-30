@@ -12,4 +12,4 @@ fi
 target=$(readlink -f ../build/bin/$target)
 
 # 运行valgrind来检查内存泄漏，并将报告输出到'./memcheck_report.log'
-valgrind --tool=memcheck --leak-check=full --log-file=./memcheck_report.log $target
+valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --log-file=./memcheck_report.log $target

@@ -21,9 +21,9 @@ do
     evidence_gen=$(echo $result | jq .data.time.evidence_gen)
     prove_gen=$(echo $result | jq .data.time.prove_gen)
     prove_verify=$(echo $result | jq .data.time.prove_verify)
-    psi=$(echo $result | jq .data.time.psi)
+    psi_time=$(echo $result | jq .data.time.psi)
     evidence=$(echo $result | jq .data.size.evidence)
     proof=$(echo $result | jq .data.size.proof)
-    psi=$(echo $result | jq .data.size.psi)
-    echo -e "$input_size\n$evidence_gen\n$prove_gen\n$prove_verify\n$psi\n$evidence\n$proof\n$psi\n" >> ./result.log
+    psi_size=$(echo $result | jq .data.size.psi)
+    echo -e "$input_size\n$evidence_gen\n$prove_gen\n$prove_verify\n$psi_time\n$evidence\n$proof\n$psi_size\n" >> ./result.log
 done

@@ -8,7 +8,7 @@
 #include <openssl/ec.h>
 #include <openssl/obj_mac.h>
 
-BIGNUM *BN_rand(int bits)
+inline BIGNUM *BN_rand(int bits)
 {
     BIGNUM *rand = BN_new();
     BN_rand(rand, bits, 0, 0);

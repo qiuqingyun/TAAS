@@ -95,10 +95,10 @@ public:
             EC_POINT_mul(w1->get_curve(), temp_right3, NULL, proof->A[i], Si, temp_ctx);
             // 计算right4
             EC_POINT_mul(w1->get_curve(), temp_right4, NULL, proof->D[i], Si, temp_ctx);
-            // 累加right3和right4
             // 多线程加锁
 #pragma omp critical
             {
+                // 累加right3和right4
                 EC_POINT_add(w1->get_curve(), right3, right3, temp_right3, temp_ctx);
                 EC_POINT_add(w1->get_curve(), right4, right4, temp_right4, temp_ctx);
             }
@@ -170,27 +170,35 @@ public:
         message_p1->Z_hat = BN_dup(Z_);
         // 保存向量P
         message_p1->P = new EC_POINT *[user_count_platform];
+// 并行化
+#pragma omp parallel for
         for (int j = 0; j < user_count_platform; ++j)
         {
+            BN_CTX *temp_ctx = BN_CTX_new();
             // 计算 Pj=k3*Wj*G2
             message_p1->P[j] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), message_p1->P[j], NULL, w1->get_G2(), k3, ctx);
-            EC_POINT_mul(w1->get_curve(), message_p1->P[j], NULL, message_p1->P[j], user_id_platform[j], ctx);
+            EC_POINT_mul(w1->get_curve(), message_p1->P[j], NULL, w1->get_G2(), k3, temp_ctx);
+            EC_POINT_mul(w1->get_curve(), message_p1->P[j], NULL, message_p1->P[j], user_id_platform[j], temp_ctx);
             // 计算哈希值 t_j=H(j||W1||P')
-            char *temp_P_ = EC_POINT_point2hex(w1->get_curve(), message_p1->P_, POINT_CONVERSION_COMPRESSED, ctx);
+            char *temp_P_ = EC_POINT_point2hex(w1->get_curve(), message_p1->P_, POINT_CONVERSION_COMPRESSED, temp_ctx);
             std::string combined = str_bind(
                 std::to_string(j),
-                w1->to_string(ctx),
+                w1->to_string(temp_ctx),
                 temp_P_);
             OPENSSL_free(temp_P_);
             BIGNUM *t_j = BN_hash(combined);
             // 计算 Z_hat = Z_hat + tj*k3*Wj
             BIGNUM *temp = BN_new();
-            BN_mul(temp, t_j, k3, ctx);
-            BN_mul(temp, temp, user_id_platform[j], ctx);
+            BN_mul(temp, t_j, k3, temp_ctx);
+            BN_mul(temp, temp, user_id_platform[j], temp_ctx);
+// 线程安全
+#pragma omp critical
+            // 累加 Z_hat
             BN_add(message_p1->Z_hat, message_p1->Z_hat, temp);
+            // 释放内存
             BN_free(temp);
             BN_free(t_j);
+            BN_CTX_free(temp_ctx);
         }
         // 释放内存
         BN_free(Z_);
@@ -233,50 +241,71 @@ public:
             OPENSSL_free(temp_GS);
             OPENSSL_free(temp_pkA);
             BIGNUM *ts = BN_hash(combined);
-            // 保存向量CD
-            EC_POINT **CD = new EC_POINT *[user_count_platform];
-            for (int j = 0; j < user_count_platform; ++j)
-            {
-                // 计算 CDj = y*CAj + CBj - z*G2
-                CD[j] = EC_POINT_new(w1->get_curve());
-                EC_POINT *temp = EC_POINT_new(w1->get_curve());
-                EC_POINT_mul(w1->get_curve(), temp, NULL, message->CA[j], y, ctx); // y*CAj
-                EC_POINT_add(w1->get_curve(), CD[j], temp, message->CB[j], ctx);   // y*CAj + CBj
-                EC_POINT_mul(w1->get_curve(), temp, NULL, w1->get_G2(), z, ctx);
-                EC_POINT_invert(w1->get_curve(), temp, ctx); // -z*G2
-                EC_POINT_add(w1->get_curve(), CD[j], CD[j], temp, ctx);
-                EC_POINT_free(temp);
-            }
-            // 验证向量CD_和CD中的元素是否相等
-            for (int j = 0; j < user_count_platform; ++j)
-            {
-                // 比较CD_[j]和CD[j]
-                if (EC_POINT_cmp(w1->get_curve(), message->CD_[j], CD[j], ctx) != 0)
-                {
-                    std::cout << "failed: P3" << std::endl;
-                    std::cout << "CD_[" << j << "] != CD[" << j << "]" << std::endl;
-                    return 1;
-                }
-            }
-            // 验证 E = (x^1 + y*1 - z) * (x^2 + y*2 - z) * ... * (x^m + y*m - z)
+            // 保存CD的比较结果
+            bool result_CD = true;
+            // 保存 E_ = (x^1 + y*1 - z) * (x^2 + y*2 - z) * ... * (x^m + y*m - z)
             BIGNUM *E_ = BN_new();
             BN_one(E_);
+            // 验证 F = C1*x^1 + C2*x^2 + ... + Cm*x^m，赋值 F' = C1*x^1
+            ElGamal_ciphertext *F_ = new ElGamal_ciphertext(w1->get_curve(), message->C[0]->C1, message->C[0]->C2);
+            ElGamal_mul(w1->get_curve(), F_, F_, x, ctx);
+// 并行化
+#pragma omp parallel for
             for (int j = 0; j < user_count_platform; ++j)
             {
+                BN_CTX *temp_ctx = BN_CTX_new();
                 // 将j转换为BIGNUM
                 BIGNUM *j_bn = BN_new();
                 BN_set_word(j_bn, j + 1);
+                // 计算 CDj = y*CAj + CBj - z*G2
+                EC_POINT *CDj = EC_POINT_new(w1->get_curve());
+                EC_POINT *temp = EC_POINT_new(w1->get_curve());
+                EC_POINT_mul(w1->get_curve(), temp, NULL, message->CA[j], y, temp_ctx); // y*CAj
+                EC_POINT_add(w1->get_curve(), CDj, temp, message->CB[j], temp_ctx);     // y*CAj + CBj
+                EC_POINT_mul(w1->get_curve(), temp, NULL, w1->get_G2(), z, temp_ctx);
+                EC_POINT_invert(w1->get_curve(), temp, temp_ctx); // -z*G2
+                EC_POINT_add(w1->get_curve(), CDj, CDj, temp, temp_ctx);
+                // 比较CD_[j]和CD[j]
+                result_CD &= (EC_POINT_cmp(w1->get_curve(), message->CD_[j], CDj, temp_ctx) == 0);
+                // 验证 E = (x^1 + y*1 - z) * (x^2 + y*2 - z) * ... * (x^m + y*m - z)
                 BIGNUM *temp1 = BN_new();
                 BIGNUM *temp2 = BN_new();
-                BN_mod_exp(temp1, x, j_bn, w1->get_order(), ctx);      // x^j
-                BN_mod_mul(temp2, y, j_bn, w1->get_order(), ctx);      // y*j
-                BN_mod_add(temp1, temp1, temp2, w1->get_order(), ctx); // x^j + y*j
-                BN_mod_sub(temp2, temp1, z, w1->get_order(), ctx);     // x^j + y*j - z
-                BN_mod_mul(E_, E_, temp2, w1->get_order(), ctx);       // E' *= x^j + y*j - z
+                BN_mod_exp(temp1, x, j_bn, w1->get_order(), temp_ctx);      // x^j
+                BN_mod_mul(temp2, y, j_bn, w1->get_order(), temp_ctx);      // y*j
+                BN_mod_add(temp1, temp1, temp2, w1->get_order(), temp_ctx); // x^j + y*j
+                BN_mod_sub(temp2, temp1, z, w1->get_order(), temp_ctx);     // x^j + y*j - z
+#pragma omp critical
+                // 累乘 E' = E' * (x^j + y*j - z)
+                BN_mod_mul(E_, E_, temp2, w1->get_order(), temp_ctx);
+                // 验证 F' = C1*x^1 + C2*x^2 + ... + Cm*x^m
+                if (j > 0)
+                {
+                    // 计算 x^j
+                    BIGNUM *temp_x_j = BN_new();
+                    BN_mod_exp(temp_x_j, x, j_bn, w1->get_order(), temp_ctx);
+                    // 计算 Cj*x^j
+                    ElGamal_ciphertext *temp_c = new ElGamal_ciphertext();
+                    ElGamal_mul(w1->get_curve(), temp_c, message->C[j], temp_x_j, temp_ctx);
+#pragma omp critical
+                    // 累加 F' = F' + Cj*x^j
+                    ElGamal_add(w1->get_curve(), F_, F_, temp_c, temp_ctx);
+                    BN_free(temp_x_j);
+                    delete temp_c;
+                }
                 // 释放内存
                 BN_free(j_bn);
                 BN_free(temp1);
                 BN_free(temp2);
+                EC_POINT_free(temp);
+                EC_POINT_free(CDj);
+                BN_CTX_free(temp_ctx);
+            }
+            // 比较CD_和CD
+            if (!result_CD)
+            {
+                std::cout << "failed: P3" << std::endl;
+                std::cout << "CD_ != CD" << std::endl;
+                return 1;
             }
             // 比较 E 和 E_
             if (BN_cmp(message->E, E_) != 0)
@@ -284,29 +313,6 @@ public:
                 std::cout << "failed: P3" << std::endl;
                 std::cout << "E != E_" << std::endl;
                 return 1;
-            }
-            // 验证 F = C1*x^1 + C2*x^2 + ... + Cm*x^m
-            // 赋值 F' = C1*x^1
-            ElGamal_ciphertext *F_ = new ElGamal_ciphertext(w1->get_curve(), message->C[0]->C1, message->C[0]->C2);
-            ElGamal_mul(w1->get_curve(), F_, F_, x, ctx);
-            for (int j = 1; j < user_count_platform; ++j)
-            {
-                // 计算 Cj*x^j
-                // 将j转换为BIGNUM
-                BIGNUM *j_bn = BN_new();
-                BN_set_word(j_bn, j + 1);
-                // 计算 x^j
-                BIGNUM *temp = BN_new();
-                BN_mod_exp(temp, x, j_bn, w1->get_order(), ctx);
-                // 计算 Cj*x^j
-                ElGamal_ciphertext *temp_c = new ElGamal_ciphertext();
-                ElGamal_mul(w1->get_curve(), temp_c, message->C[j], temp, ctx);
-                // 计算 F' += Cj*x^j
-                ElGamal_add(w1->get_curve(), F_, F_, temp_c, ctx);
-                // 释放内存
-                BN_free(j_bn);
-                BN_free(temp);
-                delete temp_c;
             }
             // 比较 F 和 F_
             if (EC_POINT_cmp(w1->get_curve(), message->F->C1, F_->C1, ctx) != 0 || EC_POINT_cmp(w1->get_curve(), message->F->C2, F_->C2, ctx) != 0)
@@ -348,43 +354,37 @@ public:
             BN_free(z);
             BN_free(ts);
             BN_free(E_);
-            // 释放CD
-            for (int j = 0; j < user_count_platform; ++j)
-            {
-                EC_POINT_free(CD[j]);
-            }
-            delete[] CD;
         }
         // 选择随机数 k2'，kq'
         BIGNUM *k2_ = BN_rand(256);
         BIGNUM *kq_ = BN_rand(256);
         // 选择m个随机数 {b1,b2,...,bm}
         BIGNUM **b = new BIGNUM *[user_count_platform];
-        for (int j = 0; j < user_count_platform; ++j)
-        {
-            b[j] = BN_rand(256);
-        }
         // 选择n个随机数{c1,c2,...,cn}
         BIGNUM **c = new BIGNUM *[user_count_advertiser];
-        for (int j = 0; j < user_count_advertiser; ++j)
-        {
-            c[j] = BN_rand(256);
-        }
         // 设置 Q'=0
         message_p3->Q_ = EC_POINT_new(w1->get_curve());
         // 保存向量J
         message_p3->J = new EC_POINT *[user_count_platform];
+// 并行化
+#pragma omp parallel for
         for (int j = 0; j < user_count_platform; ++j)
         {
+            BN_CTX *temp_ctx = BN_CTX_new();
+            b[j] = BN_rand(256);
             // 计算 Jj = k2*Qj
             message_p3->J[j] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), message_p3->J[j], NULL, message->Q[j], k2, ctx);
+            EC_POINT_mul(w1->get_curve(), message_p3->J[j], NULL, message->Q[j], k2, temp_ctx);
             // 计算 Q' = Q' + bj*Qj
             EC_POINT *temp = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), temp, NULL, message->Q[j], b[j], ctx);
-            EC_POINT_add(w1->get_curve(), message_p3->Q_, message_p3->Q_, temp, ctx);
+            EC_POINT_mul(w1->get_curve(), temp, NULL, message->Q[j], b[j], temp_ctx);
+// 线程安全
+#pragma omp critical
+            // 累加 Q'
+            EC_POINT_add(w1->get_curve(), message_p3->Q_, message_p3->Q_, temp, temp_ctx);
             // 释放内存
             EC_POINT_free(temp);
+            BN_CTX_free(temp_ctx);
         }
         // 计算 C2 = k2*Q'
         message_p3->C2 = EC_POINT_new(w1->get_curve());
@@ -407,18 +407,26 @@ public:
         message_p3->A_ = EC_POINT_new(w1->get_curve());
         // 保存向量L
         message_p3->L = new EC_POINT *[user_count_advertiser];
+// 并行化
+#pragma omp parallel for
         for (int i = 0; i < user_count_advertiser; ++i)
         {
-            // 计算 A' = A' + ci*Ai
-            EC_POINT *temp = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), temp, NULL, message->A[i], c[i], ctx);
-            EC_POINT_add(w1->get_curve(), message_p3->A_, message_p3->A_, temp, ctx);
+            BN_CTX *temp_ctx = BN_CTX_new();
+            c[i] = BN_rand(256);
             // 计算 Li = k3*k2*Ai
             message_p3->L[i] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), message_p3->L[i], NULL, message->A[i], k3, ctx);
-            EC_POINT_mul(w1->get_curve(), message_p3->L[i], NULL, message_p3->L[i], k2, ctx);
+            EC_POINT_mul(w1->get_curve(), message_p3->L[i], NULL, message->A[i], k3, temp_ctx);
+            EC_POINT_mul(w1->get_curve(), message_p3->L[i], NULL, message_p3->L[i], k2, temp_ctx);
+            // 计算 A' = A' + ci*Ai
+            EC_POINT *temp = EC_POINT_new(w1->get_curve());
+            EC_POINT_mul(w1->get_curve(), temp, NULL, message->A[i], c[i], temp_ctx);
+// 线程安全
+#pragma omp critical
+            // 累加 A'
+            EC_POINT_add(w1->get_curve(), message_p3->A_, message_p3->A_, temp, temp_ctx);
             // 释放内存
             EC_POINT_free(temp);
+            BN_CTX_free(temp_ctx);
         }
         // 计算 kq = k3*k2
         BIGNUM *kq = BN_new();

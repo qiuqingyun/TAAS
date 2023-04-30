@@ -12,6 +12,13 @@ public:
     // 构造函数
     ElGamal_ciphertext() {}
 
+    // 构造函数
+    ElGamal_ciphertext(EC_GROUP *curve)
+    {
+        C1 = EC_POINT_new(curve);
+        C2 = EC_POINT_new(curve);
+    }
+
     // 拷贝构造函数
     ElGamal_ciphertext(EC_GROUP *curve, EC_POINT *C1, EC_POINT *C2)
     {

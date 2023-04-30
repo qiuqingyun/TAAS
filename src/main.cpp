@@ -24,6 +24,13 @@ int main(int argc, char *argv[])
     // 初始化 OpenSSL
     OpenSSL_add_all_algorithms();
     BN_CTX *ctx = BN_CTX_new();
+    std::random_device rd;
+    unsigned char seed[256];
+    for (size_t i = 0; i < sizeof(seed); ++i)
+    {
+        seed[i] = static_cast<unsigned char>(rd());
+    }
+    RAND_seed(seed, sizeof(seed));
 
     /* Global */
     W1 w1(ctx); // 公共参数
@@ -115,14 +122,16 @@ int main(int argc, char *argv[])
     advertiser.debug_set_Sum_d(Sum_d);
 
     // 使用std::shuffle将user_id_platform进行随机排序
-    std::shuffle(user_id_platform, user_id_platform + user_count_platform, std::default_random_engine(std::chrono::system_clock::now().time_since_epoch().count()));
+    std::shuffle(user_id_platform, user_id_platform + user_count_platform, std::default_random_engine(rd()));
     // 使用std::shuffle将user_data_advertiser进行随机排序
-    std::shuffle(user_data_advertiser, user_data_advertiser + user_count_advertiser, std::default_random_engine(std::chrono::system_clock::now().time_since_epoch().count()));
+    std::shuffle(user_data_advertiser, user_data_advertiser + user_count_advertiser, std::default_random_engine(rd()));
 
     std::unordered_map<std::string, User_evidence *> *U_Evidence = new std::unordered_map<std::string, User_evidence *>(); // 使用一个map存储所有用户的证据
     size_t evidence_size = 0;                                                                                              // 用户证据大小
     std::chrono::microseconds duration_user(0);                                                                            // 用户生成时间
     // 生成用户数据
+// 并行化
+#pragma omp parallel for
     for (int i = 0; i < user_count_advertiser; i++)
     {
         // 生成随机用户
@@ -136,10 +145,12 @@ int main(int argc, char *argv[])
         // 存储用户证据
         User_evidence *temp_user_evidence = user.get_user_evidence();
         char *temp_U = EC_POINT_point2hex(w1.get_curve(), temp_user_evidence->U, POINT_CONVERSION_COMPRESSED, ctx_user);
+#pragma omp critical
         U_Evidence->insert(std::make_pair(
             temp_U,
             temp_user_evidence));
         OPENSSL_free(temp_U);
+#pragma omp atomic
         evidence_size += user.get_evidence_size(ctx_user);
         // 释放内存
         BN_CTX_free(ctx_user);
