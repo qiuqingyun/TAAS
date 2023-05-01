@@ -36,29 +36,28 @@ int main(int argc, char *argv[])
 
     /* User */
     // 用户数据
-    User_data **user_data_advertiser = new User_data *[user_count_advertiser]; // 广告主拥有的用户数据，包括u和r
-    BIGNUM **user_id_platform = new BIGNUM *[user_count_platform];             // 广告平台拥有的用户身份标识
+    User_data **user_datas = new User_data *[user_count_advertiser];             // 用户数据，包括u,r和v
+    std::string *user_datas_advertiser = new std::string[user_count_advertiser]; // 广告主拥有的用户数据，包括u和r
+    BIGNUM **user_id_platform = new BIGNUM *[user_count_platform];               // 广告平台拥有的用户身份标识
     // 随机生成用户数据
     BIGNUM *Sum = BN_new(); // 累加user_data_advertiser[i]->v作为Sum
     BN_zero(Sum);
-    // 使用一个unordered_set来存储交集中的用户身份标识
-    // std::unordered_set<std::string> user_id_intersection;
     for (int i = 0; i < user_count_intersection; ++i)
     {
-        user_data_advertiser[i] = new User_data();
-        user_data_advertiser[i]->u = BN_rand(256);
-        user_data_advertiser[i]->r = BN_rand(256);
-        user_data_advertiser[i]->v = BN_rand(16);
-        user_id_platform[i] = BN_dup(user_data_advertiser[i]->u);
-        BN_mod_add(Sum, Sum, user_data_advertiser[i]->v, w1.get_order(), ctx);
+        user_datas[i] = new User_data();
+        user_datas[i]->u = BN_rand(256);
+        user_datas[i]->r = BN_rand(256);
+        user_datas[i]->v = BN_rand(16);
+        user_id_platform[i] = BN_dup(user_datas[i]->u);
+        BN_mod_add(Sum, Sum, user_datas[i]->v, w1.get_order(), ctx);
     }
     // 继续生成剩余的用户数据
     for (int i = user_count_intersection; i < user_count_advertiser; ++i)
     {
-        user_data_advertiser[i] = new User_data();
-        user_data_advertiser[i]->u = BN_rand(256);
-        user_data_advertiser[i]->r = BN_rand(256);
-        user_data_advertiser[i]->v = BN_rand(16);
+        user_datas[i] = new User_data();
+        user_datas[i]->u = BN_rand(256);
+        user_datas[i]->r = BN_rand(256);
+        user_datas[i]->v = BN_rand(16);
     }
     for (int i = user_count_intersection; i < user_count_platform; ++i)
     {
@@ -73,11 +72,11 @@ int main(int argc, char *argv[])
     // 使用std::shuffle将user_id_platform进行随机排序
     std::shuffle(user_id_platform, user_id_platform + user_count_platform, std::default_random_engine(rd()));
     // 使用std::shuffle将user_data_advertiser进行随机排序
-    std::shuffle(user_data_advertiser, user_data_advertiser + user_count_advertiser, std::default_random_engine(rd()));
+    std::shuffle(user_datas, user_datas + user_count_advertiser, std::default_random_engine(rd()));
 
-    std::unordered_map<std::string, User_evidence *> *U_Evidence = new std::unordered_map<std::string, User_evidence *>(); // 使用一个map存储所有用户的证据
-    size_t evidence_size = 0;                                                                                              // 用户证据大小
-    std::chrono::microseconds duration_user(0);                                                                            // 用户生成时间
+    std::unordered_map<std::string, std::string> *U_Evidence = new std::unordered_map<std::string, std::string>(); // 使用一个map存储所有用户的证据
+    size_t evidence_size = 0;                                                                                      // 用户证据大小
+    std::chrono::microseconds duration_user(0);                                                                    // 用户生成时间
     // 生成用户数据
 // 并行化
 #pragma omp parallel for
@@ -85,22 +84,25 @@ int main(int argc, char *argv[])
     {
         // 生成随机用户
         BN_CTX *ctx_user = BN_CTX_new();
-        User user(&w1, user_data_advertiser[i]->u, user_data_advertiser[i]->r, user_data_advertiser[i]->v);
+        User user(&w1, user_datas[i]->u, user_datas[i]->r, user_datas[i]->v);
         auto start_user = std::chrono::high_resolution_clock::now(); // 记录开始时间
         // 计算Ui和Vi
         user.compute(ctx_user);
         auto end_user = std::chrono::high_resolution_clock::now();                                     // 记录结束时间
         duration_user += std::chrono::duration_cast<std::chrono::microseconds>(end_user - start_user); // 累加运行时间
-        // 存储用户证据
-        User_evidence *temp_user_evidence = user.get_user_evidence();
-        char *temp_U = EC_POINT_point2hex(w1.get_curve(), temp_user_evidence->U, POINT_CONVERSION_COMPRESSED, ctx_user);
+        // 获取msg_user_evidence
+        std::string msg_user_evidence = user.get_msg_user_evidence(ctx_user);
+        // 保存user_datas_advertiser
+        user_datas_advertiser[i] = user.get_msg_user_data();
+        std::string Ui_str = user.get_U(ctx_user);
+
 #pragma omp critical
+        // 将用户证据存入U_Evidence
         U_Evidence->insert(std::make_pair(
-            temp_U,
-            temp_user_evidence));
-        OPENSSL_free(temp_U);
+            Ui_str,
+            msg_user_evidence));
 #pragma omp atomic
-        evidence_size += user.get_evidence_size(ctx_user);
+        evidence_size += msg_user_evidence.size();
         // 释放内存
         BN_CTX_free(ctx_user);
     }
@@ -108,10 +110,16 @@ int main(int argc, char *argv[])
     duration_user /= user_count_advertiser;
     // 计算证据的平均大小
     evidence_size /= user_count_advertiser;
+    // 循环释放user_datas
+    for (int i = 0; i < user_count_advertiser; i++)
+    {
+        delete user_datas[i];
+    }
+    delete[] user_datas;
 
     // 广告主
     auto start_advertiser = std::chrono::high_resolution_clock::now(); // 记录开始时间
-    advertiser.set_user_data(user_data_advertiser);
+    advertiser.set_user_datas(user_datas_advertiser);
     advertiser.set_U_Evidence(U_Evidence);
     // 计算广告主的证明
     advertiser.proof_gen(ctx);
@@ -197,23 +205,14 @@ int main(int argc, char *argv[])
     delete message_p3;
     delete message_a4;
     // 释放ctx,user_data_advertiser,user_id_platform,Sum,Sum_d,U_Evidence
-    // 循环释放user_data_advertiser
-    for (int i = 0; i < user_count_advertiser; i++)
-    {
-        delete user_data_advertiser[i];
-    }
-    delete[] user_data_advertiser;
+
     // 循环释放user_id_platform
     for (int i = 0; i < user_count_platform; i++)
     {
         BN_free(user_id_platform[i]);
     }
     delete[] user_id_platform;
-    // 释放U_Evidence的所有value
-    for (auto it = U_Evidence->begin(); it != U_Evidence->end(); it++)
-    {
-        delete it->second;
-    }
+    delete[] user_datas_advertiser;
     delete U_Evidence;
     BN_free(Sum);
     EC_POINT_free(Sum_d);

@@ -8,6 +8,7 @@
 #include <openssl/ec.h>
 #include <openssl/obj_mac.h>
 
+// 生成指定位数的随机BIGNUM
 inline BIGNUM *BN_rand(int bits)
 {
     BIGNUM *rand = BN_new();
@@ -15,6 +16,7 @@ inline BIGNUM *BN_rand(int bits)
     return rand;
 }
 
+// 将BIGNUM转换为十六进制字符串
 inline std::string BN_to_string(BIGNUM *bn)
 {
     char *tmp = BN_bn2hex(bn);
@@ -23,6 +25,7 @@ inline std::string BN_to_string(BIGNUM *bn)
     return str;
 }
 
+// 将EC_POINT转换为十六进制字符串
 inline std::string EC_POINT_to_string(EC_GROUP *curve, EC_POINT *point, BN_CTX *ctx)
 {
     BN_CTX_start(ctx);
@@ -31,6 +34,45 @@ inline std::string EC_POINT_to_string(EC_GROUP *curve, EC_POINT *point, BN_CTX *
     OPENSSL_free(tmp);
     BN_CTX_end(ctx);
     return str;
+}
+
+// 将BIGNUM转换为二进制字符串
+inline std::string BN_serialize(BIGNUM *bn)
+{
+    std::string str;
+    int len = BN_bn2mpi(bn, nullptr);
+    str.resize(len);
+    BN_bn2mpi(bn, (unsigned char *)str.data());
+    return str;
+}
+
+// 将二进制字符串转换为BIGNUM
+inline BIGNUM *BN_deserialize(std::string str)
+{
+    BIGNUM *bn = BN_mpi2bn((unsigned char *)str.data(), str.size(), nullptr);
+    return bn;
+}
+
+// 将EC_POINT转换为二进制字符串
+inline std::string EC_POINT_serialize(EC_GROUP *curve, EC_POINT *point, BN_CTX *ctx)
+{
+    BN_CTX_start(ctx);
+    std::string str;
+    int len = EC_POINT_point2oct(curve, point, POINT_CONVERSION_COMPRESSED, nullptr, 0, ctx);
+    str.resize(len);
+    EC_POINT_point2oct(curve, point, POINT_CONVERSION_COMPRESSED, (unsigned char *)str.data(), len, ctx);
+    BN_CTX_end(ctx);
+    return str;
+}
+
+// 将二进制字符串转换为EC_POINT
+inline EC_POINT *EC_POINT_deserialize(EC_GROUP *curve, std::string str, BN_CTX *ctx)
+{
+    BN_CTX_start(ctx);
+    EC_POINT *point = EC_POINT_new(curve);
+    EC_POINT_oct2point(curve, point, (unsigned char *)str.data(), str.size(), ctx);
+    BN_CTX_end(ctx);
+    return point;
 }
 
 // 椭圆曲线点减法

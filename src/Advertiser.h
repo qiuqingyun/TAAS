@@ -16,12 +16,12 @@ class Advertiser
     Message_A2 *message_a2 = nullptr;
     Message_A4 *message_a4 = nullptr;
 
-    std::unordered_map<std::string, User_evidence *> *U_Evidence = nullptr;
+    std::unordered_map<std::string, std::string> *U_Evidence = nullptr;
 
     // 共享变量
     BIGNUM *k1 = BN_rand(256);
     EC_POINT **A = nullptr;
-    std::unordered_map<std::string, ElGamal_ciphertext *> *A_V = nullptr;
+    std::unordered_map<std::string, Messages::Msg_ElGamal_ciphertext> *A_V = nullptr;
     BIGNUM *skA_ = nullptr;
 
     // debug
@@ -73,13 +73,6 @@ public:
         }
         if (A_V != nullptr)
         {
-            for (int i = 0; i < user_count_advertiser; i++)
-            {
-                for (auto it = A_V[i].begin(); it != A_V[i].end(); it++)
-                {
-                    delete it->second;
-                }
-            }
             delete[] A_V;
         }
         if (skA_ != nullptr)
@@ -134,7 +127,7 @@ public:
         BN_copy(proof->y_hat, y_); // 将y'赋值给y_hat
 
         // 使用unordered_map存储Ai与Vi的关系，并分配在堆上
-        A_V = new std::unordered_map<std::string, ElGamal_ciphertext *>[user_count_advertiser];
+        A_V = new std::unordered_map<std::string, Messages::Msg_ElGamal_ciphertext>[user_count_advertiser];
         // 循环计算Ui，Ai，Di，U'，x_hat和y_hat
 // 并行化
 #pragma omp parallel for
@@ -171,20 +164,22 @@ public:
             // 计算y_hat
             BN_mod_mul(temp_y_hat, temp, r[i], w1->get_order(), temp_ctx);
             // 利用 Ui 从 U_Evidence 中找到对应的证据Vi
-            char *temp_str_ui = EC_POINT_point2hex(w1->get_curve(), proof->U[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
-            ElGamal_ciphertext *Vi = U_Evidence->at(temp_str_ui)->V;
-            OPENSSL_free(temp_str_ui);
-            char *temp_str_ai = EC_POINT_point2hex(w1->get_curve(), proof->A[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            std::string temp_str_ui = EC_POINT_to_string(w1->get_curve(), proof->U[i], temp_ctx);
+            std::string evidence = U_Evidence->at(temp_str_ui);
+            Messages::Msg_user_evidence msg_user_evidence;
+            msg_user_evidence.ParseFromString(evidence);
+            Messages::Msg_ElGamal_ciphertext msg_vi = msg_user_evidence.v();
+            // ElGamal_ciphertext *Vi = new ElGamal_ciphertext(w1->get_curve(), msg_vi, temp_ctx);
+            std::string temp_str_ai = EC_POINT_to_string(w1->get_curve(), proof->A[i], temp_ctx);
 #pragma omp critical
             {
                 // 保存 Ai 与 Vi 的关系
-                A_V->insert(std::make_pair(temp_str_ai, new ElGamal_ciphertext(w1->get_curve(), Vi)));
+                A_V->insert(std::make_pair(temp_str_ai, msg_vi));
                 // 累加 U'，x_hat和y_hat
                 EC_POINT_add(w1->get_curve(), proof->U_, proof->U_, temp_U_, temp_ctx);
                 BN_mod_add(proof->x_hat, proof->x_hat, temp_x_hat, w1->get_order(), temp_ctx);
                 BN_mod_add(proof->y_hat, proof->y_hat, temp_y_hat, w1->get_order(), temp_ctx);
             }
-            OPENSSL_free(temp_str_ai);
             // 释放临时变量
             EC_POINT_free(temp_Ui1);
             EC_POINT_free(temp_Ui2);
@@ -698,11 +693,13 @@ public:
         if (intersection->size() > 0)
         {
             // 将Sum_E赋值为交集向量中的第一个元素在A_V中的value
-            Sum_E = new ElGamal_ciphertext(w1->get_curve(), A_V->at(L_A->at(intersection->at(0))));
+            Sum_E = new ElGamal_ciphertext(w1->get_curve(), A_V->at(L_A->at(intersection->at(0))), ctx);
             // 循环累加交集向量中的 ElGamal_ciphertext
             for (size_t i = 1; i < intersection->size(); ++i)
             {
-                ElGamal_add(w1->get_curve(), Sum_E, Sum_E, A_V->at(L_A->at(intersection->at(i))), ctx);
+                ElGamal_ciphertext *temp = new ElGamal_ciphertext(w1->get_curve(), A_V->at(L_A->at(intersection->at(i))), ctx);
+                ElGamal_add(w1->get_curve(), Sum_E, Sum_E, temp, ctx);
+                delete temp;
             }
         }
         else
@@ -759,21 +756,21 @@ public:
     }
 
     // set U_Evidence
-    void set_U_Evidence(std::unordered_map<std::string, User_evidence *> *U_Evidence)
+    void set_U_Evidence(std::unordered_map<std::string, std::string> *U_Evidence)
     {
         this->U_Evidence = U_Evidence;
     }
     // set u和r
-    void set_user_data(User_data **user_data)
+    void set_user_datas(std::string *user_datas_advertiser)
     {
         this->u = new BIGNUM *[user_count_advertiser];
         this->r = new BIGNUM *[user_count_advertiser];
         for (int i = 0; i < user_count_advertiser; i++)
         {
-            this->u[i] = BN_new();
-            this->r[i] = BN_new();
-            BN_copy(this->u[i], user_data[i]->u);
-            BN_copy(this->r[i], user_data[i]->r);
+            Messages::Msg_user_data user_data;
+            user_data.ParseFromString(user_datas_advertiser[i]);
+            this->u[i] = BN_deserialize(user_data.u());
+            this->r[i] = BN_deserialize(user_data.r());
         }
     }
     // set user_count

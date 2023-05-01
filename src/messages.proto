@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package Messages;
+
+message Msg_ElGamal_ciphertext {
+    bytes c1 = 1;
+    bytes c2 = 2;
+}
+
+message Msg_user_data {
+    bytes u = 1;
+    bytes r = 2;
+}
+
+message Msg_user_evidence {
+    bytes U = 1;
+    Msg_ElGamal_ciphertext V = 2;
+}

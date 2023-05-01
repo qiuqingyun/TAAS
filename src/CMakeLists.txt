@@ -1,23 +1,18 @@
 file(GLOB_RECURSE SRC_FRONTEND ${CMAKE_SOURCE_DIR}/src/*.c ${CMAKE_SOURCE_DIR}/src/*.cpp )
 include_directories(${CMAKE_SOURCE_DIR}/src/)
 
+# 查找Protocol Buffers包
+find_package(Protobuf REQUIRED)
+# 将.proto文件编译成C++文件
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS messages.proto)
+
 # OpenSSL
 find_package(OpenSSL REQUIRED)
-
-# GMP
-find_path(GMP_INCLUDE_DIR NAMES gmp.h)
-find_path(GMPXX_INCLUDE_DIR NAMES gmpxx.h)
-find_library(GMP_LIBRARIES NAMES gmp libgmp)
-find_library(GMPXX_LIBRARIES NAMES gmpxx libgmpxx)
-
-# NTL
-find_path(NTL_INCLUDE_DIR NAMES NTL)
-find_library(NTL_LIBRARIES NAMES ntl libntl)
 
 # OpenMP
 find_package(OpenMP REQUIRED)
 
-ADD_EXECUTABLE(main ${SRC_FRONTEND})
+ADD_EXECUTABLE(main ${PROTO_SRCS} ${PROTO_HDRS} ${SRC_FRONTEND})
 
 target_include_directories(main
     PUBLIC
@@ -25,11 +20,12 @@ target_include_directories(main
 )
 
 set(DEP_LIBS
-    OpenMP::OpenMP_CXX OpenSSL::Crypto OpenSSL::SSL ntl gmp gmpxx
+    OpenMP::OpenMP_CXX OpenSSL::Crypto OpenSSL::SSL
 )
 
 target_link_libraries(main
     PUBLIC
+    ${PROTOBUF_LIBRARIES}
     ${DEP_LIBS}
     -pthread
 )

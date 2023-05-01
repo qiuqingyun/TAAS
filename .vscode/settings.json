@@ -55,6 +55,9 @@
         "mutex": "cpp",
         "thread": "cpp",
         "iomanip": "cpp",
-        "unordered_set": "cpp"
+        "unordered_set": "cpp",
+        "hash_map": "cpp",
+        "hash_set": "cpp",
+        "map": "cpp"
     }
 }

@@ -19,6 +19,14 @@ public:
         C2 = EC_POINT_new(curve);
     }
 
+    ElGamal_ciphertext(EC_GROUP *curve, const Messages::Msg_ElGamal_ciphertext &message, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        C1 = EC_POINT_deserialize(curve, message.c1(), ctx);
+        C2 = EC_POINT_deserialize(curve, message.c2(), ctx);
+        BN_CTX_end(ctx);
+    }
+
     // 拷贝构造函数
     ElGamal_ciphertext(EC_GROUP *curve, EC_POINT *C1, EC_POINT *C2)
     {
@@ -52,7 +60,26 @@ public:
     {
         return EC_POINT_point2oct(curve, C1, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx) + EC_POINT_point2oct(curve, C2, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
     }
+
+    // 序列化
+    Messages::Msg_ElGamal_ciphertext *serialize(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        Messages::Msg_ElGamal_ciphertext *message = new Messages::Msg_ElGamal_ciphertext();
+        message->set_c1(EC_POINT_serialize(curve, C1, ctx));
+        message->set_c2(EC_POINT_serialize(curve, C2, ctx));
+        BN_CTX_end(ctx);
+        return message;
+    }
 };
+
+int ElGamal_ciphertext_cmp(EC_GROUP *curve, ElGamal_ciphertext *ciphertext1, ElGamal_ciphertext *ciphertext2, BN_CTX *ctx)
+{
+    int result = EC_POINT_cmp(curve, ciphertext1->C1, ciphertext2->C1, ctx);
+    if (result != 0)
+        return result;
+    return EC_POINT_cmp(curve, ciphertext1->C2, ciphertext2->C2, ctx);
+}
 
 // ElGamal同态加法
 void ElGamal_add(EC_GROUP *curve, ElGamal_ciphertext *result, ElGamal_ciphertext *ciphertext1, ElGamal_ciphertext *ciphertext2, BN_CTX *ctx)

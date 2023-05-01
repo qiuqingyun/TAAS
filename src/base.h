@@ -18,3 +18,4 @@
 #include <openssl/sha.h>
 #include <openssl/obj_mac.h>
 #include "omp.h"
+#include "messages.pb.h"

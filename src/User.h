@@ -73,16 +73,31 @@ public:
     }
 
     // get函数
-    User_data *get_user_data()
+    std::string get_U(BN_CTX *ctx)
     {
-        User_data *user_data = new User_data;
-        user_data->u = BN_dup(ui);
-        user_data->r = BN_dup(ri);
-        user_data->v = BN_dup(vi);
-        return user_data;
+        return EC_POINT_to_string(w1->get_curve(), Ui, ctx);
     }
-    User_evidence *get_user_evidence()
+
+    std::string get_msg_user_data()
     {
-        return new User_evidence(w1->get_curve(), Ui, Vi);
+        std::string str;
+        Messages::Msg_user_data *msg_user_data = new Messages::Msg_user_data;
+        msg_user_data->set_u(BN_serialize(ui));
+        msg_user_data->set_r(BN_serialize(ri));
+        msg_user_data->SerializeToString(&str);
+        delete msg_user_data;
+        return str;
+    }
+
+    std::string get_msg_user_evidence(BN_CTX *ctx)
+    {
+        std::string str;
+        Messages::Msg_user_evidence *msg_user_evidence = new Messages::Msg_user_evidence;
+        msg_user_evidence->set_u(EC_POINT_serialize(w1->get_curve(), Ui, ctx));
+        Messages::Msg_ElGamal_ciphertext *msg_Vi = Vi->serialize(w1->get_curve(), ctx);
+        msg_user_evidence->set_allocated_v(msg_Vi);
+        msg_user_evidence->SerializeToString(&str);
+        delete msg_user_evidence;
+        return str;
     }
 };
