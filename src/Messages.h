@@ -963,6 +963,7 @@ public:
             BIGNUM *zero = BN_new();
             BN_zero(zero);
             msg_a4.set_sum(BN_serialize(zero));
+            BN_free(zero);
         }
         msg_a4.set_gk(EC_POINT_serialize(curve, GK, ctx));
         msg_a4.set_gk_prime(EC_POINT_serialize(curve, GK_, ctx));
