@@ -8,12 +8,16 @@ int test_verify(int user_count);
 
 int main(int argc, char *argv[])
 {
+    int thread_count = 0;          // 线程数
     int user_count_advertiser = 2; // 广告主的用户数量
-    if (argc == 2)
-    {
-        // 读取argv[1]并赋值到user_count
-        user_count_advertiser = atoi(argv[1]);
-    }
+    if (argc > 2)
+        thread_count = atoi(argv[2]); // 读取argv[2]并赋值到thread_count
+    if (argc > 1)
+        user_count_advertiser = atoi(argv[1]); // 读取argv[1]并赋值到user_count
+
+    // 设置线程数
+    if (thread_count > 0)
+        omp_set_num_threads(thread_count);
 
     int user_count_platform = std::ceil(user_count_advertiser * 1.0);     // 广告平台的用户数量
     int user_count_intersection = std::ceil(user_count_advertiser * 0.8); // 交集用户数量
