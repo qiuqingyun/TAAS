@@ -59,8 +59,9 @@ public:
         P0 p0(w1->get_curve(), proof->W_, proof->C1_);
 
         // 计算哈希值 S0 = hash(W1||P0)
-        std::string combined = str_bind(w1->to_string(ctx), p0.to_string(ctx));
-        BIGNUM *S0 = BN_hash(combined);
+        BIGNUM *S0 = BN_hash(
+            w1->to_string(ctx),
+            p0.to_string(ctx));
 
         // 验证等式是否成立: k_hat*G1 = S0*W + W'
         EC_POINT_mul(w1->get_curve(), left1, NULL, w1->get_G1(), proof->k_hat, ctx);
@@ -95,8 +96,10 @@ public:
             // 设置公开参数组Pi
             Pi pi(w1->get_curve(), proof->A[i], proof->D[i]);
             // 计算哈希值 Si = hash(i||W1||Pi)
-            std::string combined = str_bind(std::to_string(i), w1->to_string(temp_ctx), pi.to_string(temp_ctx));
-            BIGNUM *Si = BN_hash(combined);
+            BIGNUM *Si = BN_hash(
+                std::to_string(i),
+                w1->to_string(temp_ctx),
+                pi.to_string(temp_ctx));
             // 计算right3
             EC_POINT_mul(w1->get_curve(), temp_right3, NULL, proof->A[i], Si, temp_ctx);
             // 计算right4
@@ -190,13 +193,10 @@ public:
             message_p1->P[j] = EC_POINT_new(w1->get_curve());
             EC_POINT_copy(message_p1->P[j], P[j]);
             // 计算哈希值 t_j=H(j||W1||P')
-            char *temp_P_ = EC_POINT_point2hex(w1->get_curve(), message_p1->P_, POINT_CONVERSION_COMPRESSED, temp_ctx);
-            std::string combined = str_bind(
+            BIGNUM *t_j = BN_hash(
                 std::to_string(j),
                 w1->to_string(temp_ctx),
-                temp_P_);
-            OPENSSL_free(temp_P_);
-            BIGNUM *t_j = BN_hash(combined);
+                EC_POINT_to_string(w1->get_curve(), message_p1->P_, temp_ctx));
             // 计算 Z_hat = Z_hat + tj*k3*Wj
             BIGNUM *temp = BN_new();
             BN_mul(temp, t_j, k3, temp_ctx);
@@ -228,33 +228,22 @@ public:
         // 验证上一轮的计算
         {
             // 计算哈希值x,y,z和ts
-            char *temp_CA = EC_POINT_point2hex(w1->get_curve(), message->CA[0], POINT_CONVERSION_COMPRESSED, ctx);
-            std::string combined = str_bind(
+            BIGNUM *x = BN_hash(
                 w1->to_string(ctx),
-                temp_CA);
-            OPENSSL_free(temp_CA);
-            BIGNUM *x = BN_hash(combined);
-            char *temp_CB = EC_POINT_point2hex(w1->get_curve(), message->CB[0], POINT_CONVERSION_COMPRESSED, ctx);
-            combined = str_bind(
+                EC_POINT_to_string(w1->get_curve(), message->CA[0], ctx));
+            std::string CB1_str = EC_POINT_to_string(w1->get_curve(), message->CB[0], ctx);
+            BIGNUM *y = BN_hash(
                 "1",
                 w1->to_string(ctx),
-                temp_CB);
-            BIGNUM *y = BN_hash(combined);
-            combined = str_bind(
+                CB1_str);
+            BIGNUM *z = BN_hash(
                 "2",
                 w1->to_string(ctx),
-                temp_CB);
-            OPENSSL_free(temp_CB);
-            BIGNUM *z = BN_hash(combined);
-            char *temp_GS = EC_POINT_point2hex(w1->get_curve(), message->GS_, POINT_CONVERSION_COMPRESSED, ctx);
-            char *temp_pkA = EC_POINT_point2hex(w1->get_curve(), message->pkA_, POINT_CONVERSION_COMPRESSED, ctx);
-            combined = str_bind(
+                CB1_str);
+            BIGNUM *ts = BN_hash(
                 w1->to_string(ctx),
-                temp_GS,
-                temp_pkA);
-            OPENSSL_free(temp_GS);
-            OPENSSL_free(temp_pkA);
-            BIGNUM *ts = BN_hash(combined);
+                EC_POINT_to_string(w1->get_curve(), message->GS_, ctx),
+                EC_POINT_to_string(w1->get_curve(), message->pkA_, ctx));
             // 保存CD的比较结果
             bool result_CD = true;
             // 保存 E_ = (x^1 + y*1 - z) * (x^2 + y*2 - z) * ... * (x^m + y*m - z)
@@ -308,15 +297,10 @@ public:
                     delete temp_c;
                 }
                 // 计算哈希值 Sj = H(W1||C'1j||C'2j)
-                char *temp_C1_j = EC_POINT_point2hex(w1->get_curve(), message->C1_[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
-                char *temp_C2_j = EC_POINT_point2hex(w1->get_curve(), message->C2_[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
-                std::string combined = str_bind(
+                BIGNUM *Sj = BN_hash(
                     w1->to_string(temp_ctx),
-                    temp_C1_j,
-                    temp_C2_j);
-                OPENSSL_free(temp_C1_j);
-                OPENSSL_free(temp_C2_j);
-                BIGNUM *Sj = BN_hash(combined);
+                    EC_POINT_to_string(w1->get_curve(), message->C1_[j], temp_ctx),
+                    EC_POINT_to_string(w1->get_curve(), message->C2_[j], temp_ctx));
                 // 验证 x_hatj*Pj + y_hatj*pkA = Sj*C1j + C'1j
                 EC_POINT *left1 = EC_POINT_new(w1->get_curve());
                 EC_POINT *temp_left1 = EC_POINT_new(w1->get_curve());
@@ -460,12 +444,9 @@ public:
         message_p3->C2_ = EC_POINT_new(w1->get_curve());
         EC_POINT_mul(w1->get_curve(), message_p3->C2_, NULL, message_p3->Q_, k2_, ctx);
         // 计算哈希值 tq = H(W_1||C2')
-        char *temp_C2_ = EC_POINT_point2hex(w1->get_curve(), message_p3->C2_, POINT_CONVERSION_COMPRESSED, ctx);
-        std::string combine = str_bind(
+        BIGNUM *tq = BN_hash(
             w1->to_string(ctx),
-            temp_C2_);
-        OPENSSL_free(temp_C2_);
-        BIGNUM *tq = BN_hash(combine);
+            EC_POINT_to_string(w1->get_curve(), message_p3->C2_, ctx));
         // 计算 k2_hat = tq*k2 + k2'
         message_p3->k2_hat = BN_new();
         BN_mod_mul(message_p3->k2_hat, tq, k2, w1->get_order(), ctx);
@@ -505,12 +486,9 @@ public:
         message_p3->C3_ = EC_POINT_new(w1->get_curve());
         EC_POINT_mul(w1->get_curve(), message_p3->C3_, NULL, message_p3->A_, kq_, ctx);
         // 计算哈希值 ta = H(W_1||C3')
-        char *temp_C3_ = EC_POINT_point2hex(w1->get_curve(), message_p3->C3_, POINT_CONVERSION_COMPRESSED, ctx);
-        combine = str_bind(
+        BIGNUM *ta = BN_hash(
             w1->to_string(ctx),
-            temp_C3_);
-        OPENSSL_free(temp_C3_);
-        BIGNUM *ta = BN_hash(combine);
+            EC_POINT_to_string(w1->get_curve(), message_p3->C3_, ctx));
         // 计算 kq_hat = ta*kq + kq'
         message_p3->kq_hat = BN_new();
         BN_mod_mul(message_p3->kq_hat, ta, kq, w1->get_order(), ctx);
@@ -539,15 +517,10 @@ public:
     {
         BN_CTX_start(ctx);
         // 计算哈希值 tb = H(W1||GK'||pkA'')
-        char *temp_GK_ = EC_POINT_point2hex(w1->get_curve(), message->GK_, POINT_CONVERSION_COMPRESSED, ctx);
-        char *temp_pkA__ = EC_POINT_point2hex(w1->get_curve(), message->pkA__, POINT_CONVERSION_COMPRESSED, ctx);
-        std::string combine = str_bind(
+        BIGNUM *tb = BN_hash(
             w1->to_string(ctx),
-            temp_GK_,
-            temp_pkA__);
-        OPENSSL_free(temp_GK_);
-        OPENSSL_free(temp_pkA__);
-        BIGNUM *tb = BN_hash(combine);
+            EC_POINT_to_string(w1->get_curve(), message->GK_, ctx),
+            EC_POINT_to_string(w1->get_curve(), message->pkA__, ctx));
         // 验证 skA'_hat*Ga = tb*GK + GK'
         EC_POINT *left = EC_POINT_new(w1->get_curve());
         EC_POINT *right = EC_POINT_new(w1->get_curve());

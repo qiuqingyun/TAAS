@@ -27,31 +27,6 @@ public:
     }
 };
 
-// class User_evidence
-// {
-// public:
-//     EC_POINT *U;
-//     ElGamal_ciphertext *V;
-
-//     // 构造函数
-//     User_evidence() {}
-
-//     // 深拷贝构造函数
-//     User_evidence(EC_GROUP *curve, EC_POINT *U, ElGamal_ciphertext *V)
-//     {
-//         this->U = EC_POINT_new(curve);
-//         EC_POINT_copy(this->U, U);
-//         this->V = new ElGamal_ciphertext(curve, V);
-//     }
-
-//     // 释放内存
-//     ~User_evidence()
-//     {
-//         EC_POINT_free(U);
-//         delete V;
-//     }
-// };
-
 class Proof
 {
 public:
