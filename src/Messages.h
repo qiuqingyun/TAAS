@@ -281,6 +281,10 @@ public:
     EC_POINT *GS = nullptr;
     EC_POINT *pkA_ = nullptr;
     BIGNUM *skA_hat = nullptr;
+    EC_POINT **C1_ = nullptr;
+    EC_POINT **C2_ = nullptr;
+    BIGNUM **x_hat = nullptr;
+    BIGNUM **y_hat = nullptr;
 
     Message_A2() {}
 
@@ -323,6 +327,19 @@ public:
         EC_POINT_copy(GS_, message->GS_);
         EC_POINT_copy(GS, message->GS);
         EC_POINT_copy(pkA_, message->pkA_);
+        C1_ = new EC_POINT *[user_count_platform];
+        C2_ = new EC_POINT *[user_count_platform];
+        x_hat = new BIGNUM *[user_count_platform];
+        y_hat = new BIGNUM *[user_count_platform];
+        for (int i = 0; i < user_count_platform; i++)
+        {
+            C1_[i] = EC_POINT_new(curve);
+            C2_[i] = EC_POINT_new(curve);
+            x_hat[i] = BN_dup(message->x_hat[i]);
+            y_hat[i] = BN_dup(message->y_hat[i]);
+            EC_POINT_copy(C1_[i], message->C1_[i]);
+            EC_POINT_copy(C2_[i], message->C2_[i]);
+        }
     }
 
     // 释放内存
@@ -450,6 +467,58 @@ public:
             BN_free(skA_hat);
             skA_hat = nullptr;
         }
+        if (C1_ != nullptr)
+        {
+            for (int i = 0; i < user_count_platform; i++)
+            {
+                if (C1_[i] != nullptr)
+                {
+                    EC_POINT_free(C1_[i]);
+                    C1_[i] = nullptr;
+                }
+            }
+            delete[] C1_;
+            C1_ = nullptr;
+        }
+        if (C2_ != nullptr)
+        {
+            for (int i = 0; i < user_count_platform; i++)
+            {
+                if (C2_[i] != nullptr)
+                {
+                    EC_POINT_free(C2_[i]);
+                    C2_[i] = nullptr;
+                }
+            }
+            delete[] C2_;
+            C2_ = nullptr;
+        }
+        if (x_hat != nullptr)
+        {
+            for (int i = 0; i < user_count_platform; i++)
+            {
+                if (x_hat[i] != nullptr)
+                {
+                    BN_free(x_hat[i]);
+                    x_hat[i] = nullptr;
+                }
+            }
+            delete[] x_hat;
+            x_hat = nullptr;
+        }
+        if (y_hat != nullptr)
+        {
+            for (int i = 0; i < user_count_platform; i++)
+            {
+                if (y_hat[i] != nullptr)
+                {
+                    BN_free(y_hat[i]);
+                    y_hat[i] = nullptr;
+                }
+            }
+            delete[] y_hat;
+            y_hat = nullptr;
+        }
     }
 
     // 获取字节数
@@ -476,6 +545,14 @@ public:
         for (int i = 0; i < user_count_advertiser; i++)
         {
             size += EC_POINT_point2oct(curve, A[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        }
+        // 计算C_1,C_2,x_hat,y_hat的字节数
+        for (int j = 0; j < user_count_platform; j++)
+        {
+            size += EC_POINT_point2oct(curve, C1_[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, C2_[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += BN_bn2mpi(x_hat[j], NULL);
+            size += BN_bn2mpi(y_hat[j], NULL);
         }
         BN_CTX_end(ctx);
         return size;

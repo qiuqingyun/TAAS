@@ -15,9 +15,6 @@ int main(int argc, char *argv[])
         user_count_advertiser = atoi(argv[1]);
     }
 
-    // test_verify(user_count_advertiser);
-    // return 0;
-
     int user_count_platform = std::ceil(user_count_advertiser * 1.0);     // 广告平台的用户数量
     int user_count_intersection = std::ceil(user_count_advertiser * 0.8); // 交集用户数量
 
@@ -54,8 +51,6 @@ int main(int argc, char *argv[])
         user_data_advertiser[i]->v = BN_rand(16);
         user_id_platform[i] = BN_dup(user_data_advertiser[i]->u);
         BN_mod_add(Sum, Sum, user_data_advertiser[i]->v, w1.get_order(), ctx);
-        // 将用户身份标识插入到unordered_set中
-        // user_id_intersection.insert(BN_bn2hex(user_data_advertiser[i]->u));
     }
     // 继续生成剩余的用户数据
     for (int i = user_count_intersection; i < user_count_advertiser; ++i)
@@ -70,53 +65,7 @@ int main(int argc, char *argv[])
         user_id_platform[i] = BN_rand(256);
     }
 
-    // 测试ElGamal加密
-    bool test_elgamal = false;
-    if (test_elgamal)
-    {
-        // 设置明文plaintext1=10, plaintext2=20
-        BIGNUM *plaintext1 = BN_new();
-        BIGNUM *plaintext2 = BN_new();
-        BN_set_word(plaintext1, 10);
-        BN_set_word(plaintext2, 20);
-        // 加密plaintext1和plaintext2
-        ElGamal_ciphertext *ciphertext1 = ElGamal_encrypt(&w1, plaintext1, ctx);
-        ElGamal_ciphertext *ciphertext2 = ElGamal_encrypt(&w1, plaintext2, ctx);
-        // 解密ciphertext1和ciphertext2
-        EC_POINT *decrypted1 = ElGamal_decrypt(&w1, advertiser.get_skA(), ciphertext1, ctx);
-        EC_POINT *decrypted2 = ElGamal_decrypt(&w1, advertiser.get_skA(), ciphertext2, ctx);
-        // 计算plaintext1*Ga
-        EC_POINT *plaintext1_Ga = EC_POINT_new(w1.get_curve());
-        EC_POINT_mul(w1.get_curve(), plaintext1_Ga, NULL, w1.get_Ga(), plaintext1, ctx);
-        // 计算plaintext2*Ga
-        EC_POINT *plaintext2_Ga = EC_POINT_new(w1.get_curve());
-        EC_POINT_mul(w1.get_curve(), plaintext2_Ga, NULL, w1.get_Ga(), plaintext2, ctx);
-        // 打印plaintext1*Ga
-        std::cout << "plaintext1_Ga: " << EC_POINT_point2hex(w1.get_curve(), plaintext1_Ga, POINT_CONVERSION_COMPRESSED, ctx) << std::endl;
-        // 打印decrypted1
-        std::cout << "decrypted1: " << EC_POINT_point2hex(w1.get_curve(), decrypted1, POINT_CONVERSION_COMPRESSED, ctx) << std::endl;
-        // 打印plaintext2*Ga
-        std::cout << "plaintext2_Ga: " << EC_POINT_point2hex(w1.get_curve(), plaintext2_Ga, POINT_CONVERSION_COMPRESSED, ctx) << std::endl;
-        // 打印decrypted2
-        std::cout << "decrypted2: " << EC_POINT_point2hex(w1.get_curve(), decrypted2, POINT_CONVERSION_COMPRESSED, ctx) << std::endl;
-        // 计算ciphertext1+ciphertext2
-        ElGamal_ciphertext *ciphertext_sum = new ElGamal_ciphertext();
-        ElGamal_add(w1.get_curve(), ciphertext_sum, ciphertext1, ciphertext2, ctx);
-        // 解密ciphertext_sum
-        EC_POINT *decrypted_sum = ElGamal_decrypt(&w1, advertiser.get_skA(), ciphertext_sum, ctx);
-        // 打印decrypted_sum
-        std::cout << "decrypted_sum: " << EC_POINT_point2hex(w1.get_curve(), decrypted_sum, POINT_CONVERSION_COMPRESSED, ctx) << std::endl;
-        // 计算plaintext1+plaintext2
-        BIGNUM *plaintext_sum = BN_new();
-        BN_add(plaintext_sum, plaintext1, plaintext2);
-        // 计算(plaintext1+plaintext2)*Ga
-        EC_POINT *plaintext_sum_Ga = EC_POINT_new(w1.get_curve());
-        EC_POINT_mul(w1.get_curve(), plaintext_sum_Ga, NULL, w1.get_Ga(), plaintext_sum, ctx);
-        // 打印plaintext_sum_Ga
-        std::cout << "plaintext_sum_Ga: " << EC_POINT_point2hex(w1.get_curve(), plaintext_sum_Ga, POINT_CONVERSION_COMPRESSED, ctx) << std::endl;
-    }
-
-    // 计算Sum*Ga
+    // debug: 计算Sum*Ga
     EC_POINT *Sum_d = EC_POINT_new(w1.get_curve());
     EC_POINT_mul(w1.get_curve(), Sum_d, NULL, w1.get_Ga(), Sum, ctx);
     advertiser.debug_set_Sum_d(Sum_d);

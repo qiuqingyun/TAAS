@@ -15,6 +15,24 @@ inline BIGNUM *BN_rand(int bits)
     return rand;
 }
 
+inline std::string BN_to_string(BIGNUM *bn)
+{
+    char *tmp = BN_bn2hex(bn);
+    std::string str(tmp);
+    OPENSSL_free(tmp);
+    return str;
+}
+
+inline std::string EC_POINT_to_string(EC_GROUP *curve, EC_POINT *point, BN_CTX *ctx)
+{
+    BN_CTX_start(ctx);
+    char *tmp = EC_POINT_point2hex(curve, point, POINT_CONVERSION_COMPRESSED, ctx);
+    std::string str(tmp);
+    OPENSSL_free(tmp);
+    BN_CTX_end(ctx);
+    return str;
+}
+
 // 椭圆曲线点减法
 void EC_POINT_sub(EC_GROUP *curve, EC_POINT *r, EC_POINT *a, EC_POINT *b, BN_CTX *ctx)
 {

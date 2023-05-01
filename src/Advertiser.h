@@ -314,6 +314,14 @@ public:
         message_a2->C = new ElGamal_ciphertext *[user_count_platform];
         // 保存向量A
         message_a2->A = new EC_POINT *[user_count_advertiser];
+        // 保存向量C1_
+        message_a2->C1_ = new EC_POINT *[user_count_advertiser];
+        // 保存向量C2_
+        message_a2->C2_ = new EC_POINT *[user_count_advertiser];
+        // 保存向量x_hat
+        message_a2->x_hat = new BIGNUM *[user_count_advertiser];
+        // 保存向量y_hat
+        message_a2->y_hat = new BIGNUM *[user_count_advertiser];
 // 并行化
 #pragma omp parallel for
         for (int i = 0; i < user_count_advertiser; ++i)
@@ -326,27 +334,60 @@ public:
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
-            BIGNUM *r_ = BN_rand(256);
+            BIGNUM *r_ = BN_rand(256); // 随机数r'j
+            BIGNUM *x_ = BN_rand(256); // 随机数x'j
+            BIGNUM *y_ = BN_rand(256); // 随机数y'j
             rho[j] = BN_rand(256);
             s[j] = BN_rand(256);
             t[j] = BN_rand(256);
             pi[j] = j + 1;
-            // 计算ElGamal密文 Cj = (k1*Pj + rj*pkA , rj*Ha)
+            // 计算ElGamal密文 Cj = (k1*Pj + r'j*pkA , r'j*Ha)
             // 设置临时C1和C2
             message_a2->C[j] = new ElGamal_ciphertext(w1->get_curve());
             EC_POINT *temp = EC_POINT_new(w1->get_curve());
             // 计算 k1*Pj
             EC_POINT_mul(w1->get_curve(), message_a2->C[j]->C1, NULL, message->P[j], k1, temp_ctx);
-            // 计算 rj*pkA
+            // 计算 r'j*pkA
             EC_POINT_mul(w1->get_curve(), temp, NULL, w1->get_pkA(), r_, temp_ctx);
-            // 计算 C1 = k1*Pj + rj*pkA
+            // 计算 C1 = k1*Pj + r'j*pkA
             EC_POINT_add(w1->get_curve(), message_a2->C[j]->C1, message_a2->C[j]->C1, temp, temp_ctx);
-            // 计算 C2 = rj*Ha
+            // 计算 C2 = r'j*Ha
             EC_POINT_mul(w1->get_curve(), message_a2->C[j]->C2, NULL, w1->get_Ha(), r_, temp_ctx);
+            // 计算 C'1j = x'j*Pj + y'j*pkA
+            message_a2->C1_[j] = EC_POINT_new(w1->get_curve());
+            EC_POINT *temp_ = EC_POINT_new(w1->get_curve());
+            EC_POINT_mul(w1->get_curve(), message_a2->C1_[j], NULL, message->P[j], x_, temp_ctx);   // 计算 x'j*Pj
+            EC_POINT_mul(w1->get_curve(), temp_, NULL, w1->get_pkA(), y_, temp_ctx);                // 计算 y'j*pkA
+            EC_POINT_add(w1->get_curve(), message_a2->C1_[j], message_a2->C1_[j], temp_, temp_ctx); // 计算 C'1j = x'j*Pj + y'j*pkA
+            // 计算 C'2j = y'j*Ha
+            message_a2->C2_[j] = EC_POINT_new(w1->get_curve());
+            EC_POINT_mul(w1->get_curve(), message_a2->C2_[j], NULL, w1->get_Ha(), y_, temp_ctx);
+            // 计算哈希值 Sj = H(W1||C'1j||C'2j)
+            char *temp_C1_j = EC_POINT_point2hex(w1->get_curve(), message_a2->C1_[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            char *temp_C2_j = EC_POINT_point2hex(w1->get_curve(), message_a2->C2_[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            std::string combined = str_bind(
+                w1->to_string(temp_ctx),
+                temp_C1_j,
+                temp_C2_j);
+            OPENSSL_free(temp_C1_j);
+            OPENSSL_free(temp_C2_j);
+            BIGNUM *Sj = BN_hash(combined);
+            // 计算 x_hatj = Sj*k1 + x'j
+            message_a2->x_hat[j] = BN_new();
+            BN_mod_mul(message_a2->x_hat[j], Sj, k1, w1->get_order(), temp_ctx);                   // 计算 Sj*k1
+            BN_mod_add(message_a2->x_hat[j], message_a2->x_hat[j], x_, w1->get_order(), temp_ctx); // 计算 x_hatj = Sj*k1 + x'j
+            // 计算 y_hatj = Sj*r'j + y'j
+            message_a2->y_hat[j] = BN_new();
+            BN_mod_mul(message_a2->y_hat[j], Sj, r_, w1->get_order(), temp_ctx);                   // 计算 Sj*r'j
+            BN_mod_add(message_a2->y_hat[j], message_a2->y_hat[j], y_, w1->get_order(), temp_ctx); // 计算 y_hatj = Sj*r'j + y'j
             // 释放内存
             EC_POINT_free(temp);
-            BN_CTX_free(temp_ctx);
+            EC_POINT_free(temp_);
             BN_free(r_);
+            BN_free(x_);
+            BN_free(y_);
+            BN_free(Sj);
+            BN_CTX_free(temp_ctx);
         }
         // 选择随机数 skA'
         skA_ = BN_rand(256);
