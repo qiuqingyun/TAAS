@@ -91,7 +91,7 @@ public:
     {
         BN_CTX_start(ctx);
         this->proof = new Proof();
-        proof->user_count = user_count_advertiser;
+        proof->user_count_advertiser = user_count_advertiser;
 
         // 生成随机数k'，x'和y'
         BIGNUM *k_ = BN_rand(256);
@@ -255,7 +255,7 @@ public:
         delete[] a;
     }
 
-    int round_A2(Message_P1 *message, BN_CTX *ctx)
+    int round_A2(BN_CTX *ctx)
     {
         BN_CTX_start(ctx);
         message_a2 = new Message_A2();
@@ -267,9 +267,9 @@ public:
             EC_POINT *left = EC_POINT_new(w1->get_curve());
             EC_POINT *right = EC_POINT_new(w1->get_curve());
             // 计算 Z_hat*G2
-            EC_POINT_mul(w1->get_curve(), left, NULL, w1->get_G2(), message->Z_hat, ctx);
+            EC_POINT_mul(w1->get_curve(), left, NULL, w1->get_G2(), message_p1->Z_hat, ctx);
             // 赋值right=P'
-            EC_POINT_copy(right, message->P_);
+            EC_POINT_copy(right, message_p1->P_);
             // 计算 t1*P1 + t2*P2 + ... + tn*Pn
 // 并行化
 #pragma omp parallel for
@@ -280,10 +280,10 @@ public:
                 BIGNUM *t_j = BN_hash(
                     std::to_string(j),
                     w1->to_string(temp_ctx),
-                    EC_POINT_to_string(w1->get_curve(), message->P_, temp_ctx));
+                    EC_POINT_to_string(w1->get_curve(), message_p1->P_, temp_ctx));
                 // 计算 tj*Pj
                 EC_POINT *temp = EC_POINT_new(w1->get_curve());
-                EC_POINT_mul(w1->get_curve(), temp, NULL, message->P[j], t_j, temp_ctx);
+                EC_POINT_mul(w1->get_curve(), temp, NULL, message_p1->P[j], t_j, temp_ctx);
 // 线程安全
 #pragma omp critical
                 {
@@ -348,7 +348,7 @@ public:
             message_a2->C[j] = new ElGamal_ciphertext(w1->get_curve());
             EC_POINT *temp = EC_POINT_new(w1->get_curve());
             // 计算 k1*Pj
-            EC_POINT_mul(w1->get_curve(), message_a2->C[j]->C1, NULL, message->P[j], k1, temp_ctx);
+            EC_POINT_mul(w1->get_curve(), message_a2->C[j]->C1, NULL, message_p1->P[j], k1, temp_ctx);
             // 计算 r'j*pkA
             EC_POINT_mul(w1->get_curve(), temp, NULL, w1->get_pkA(), r_, temp_ctx);
             // 计算 C1 = k1*Pj + r'j*pkA
@@ -358,9 +358,9 @@ public:
             // 计算 C'1j = x'j*Pj + y'j*pkA
             message_a2->C1_[j] = EC_POINT_new(w1->get_curve());
             EC_POINT *temp_ = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), message_a2->C1_[j], NULL, message->P[j], x_, temp_ctx);   // 计算 x'j*Pj
-            EC_POINT_mul(w1->get_curve(), temp_, NULL, w1->get_pkA(), y_, temp_ctx);                // 计算 y'j*pkA
-            EC_POINT_add(w1->get_curve(), message_a2->C1_[j], message_a2->C1_[j], temp_, temp_ctx); // 计算 C'1j = x'j*Pj + y'j*pkA
+            EC_POINT_mul(w1->get_curve(), message_a2->C1_[j], NULL, message_p1->P[j], x_, temp_ctx); // 计算 x'j*Pj
+            EC_POINT_mul(w1->get_curve(), temp_, NULL, w1->get_pkA(), y_, temp_ctx);                 // 计算 y'j*pkA
+            EC_POINT_add(w1->get_curve(), message_a2->C1_[j], message_a2->C1_[j], temp_, temp_ctx);  // 计算 C'1j = x'j*Pj + y'j*pkA
             // 计算 C'2j = y'j*Ha
             message_a2->C2_[j] = EC_POINT_new(w1->get_curve());
             EC_POINT_mul(w1->get_curve(), message_a2->C2_[j], NULL, w1->get_Ha(), y_, temp_ctx);
@@ -584,7 +584,7 @@ public:
         return 0;
     }
 
-    int round_A4(Message_P3 *message, BN_CTX *ctx)
+    int round_A4(BN_CTX *ctx)
     {
         BN_CTX_start(ctx);
         message_a4 = new Message_A4();
@@ -593,17 +593,17 @@ public:
             // 计算 tq=H(W1||C2')
             BIGNUM *tq = BN_hash(
                 w1->to_string(ctx),
-                EC_POINT_to_string(w1->get_curve(), message->C2_, ctx));
+                EC_POINT_to_string(w1->get_curve(), message_p3->C2_, ctx));
             // 计算 ta=H(W1||C3')
             BIGNUM *ta = BN_hash(
                 w1->to_string(ctx),
-                EC_POINT_to_string(w1->get_curve(), message->C3_, ctx));
+                EC_POINT_to_string(w1->get_curve(), message_p3->C3_, ctx));
             // 验证 k2_hat*Q' = tq*C2 + C2'
             EC_POINT *left = EC_POINT_new(w1->get_curve());
             EC_POINT *right = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), left, NULL, message->Q_, message->k2_hat, ctx);
-            EC_POINT_mul(w1->get_curve(), right, NULL, message->C2, tq, ctx);
-            EC_POINT_add(w1->get_curve(), right, right, message->C2_, ctx);
+            EC_POINT_mul(w1->get_curve(), left, NULL, message_p3->Q_, message_p3->k2_hat, ctx);
+            EC_POINT_mul(w1->get_curve(), right, NULL, message_p3->C2, tq, ctx);
+            EC_POINT_add(w1->get_curve(), right, right, message_p3->C2_, ctx);
             if (EC_POINT_cmp(w1->get_curve(), left, right, ctx) != 0)
             {
                 std::cout << "failed: A4" << std::endl;
@@ -611,9 +611,9 @@ public:
                 return 1;
             }
             // 验证 kq_hat*A' = ta*C3 + C3'
-            EC_POINT_mul(w1->get_curve(), left, NULL, message->A_, message->kq_hat, ctx);
-            EC_POINT_mul(w1->get_curve(), right, NULL, message->C3, ta, ctx);
-            EC_POINT_add(w1->get_curve(), right, right, message->C3_, ctx);
+            EC_POINT_mul(w1->get_curve(), left, NULL, message_p3->A_, message_p3->kq_hat, ctx);
+            EC_POINT_mul(w1->get_curve(), right, NULL, message_p3->C3, ta, ctx);
+            EC_POINT_add(w1->get_curve(), right, right, message_p3->C3_, ctx);
             if (EC_POINT_cmp(w1->get_curve(), left, right, ctx) != 0)
             {
                 std::cout << "failed: A4" << std::endl;
@@ -633,7 +633,7 @@ public:
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
-            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message->J[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message_p3->J[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
             X[j] = temp_J;
             // 释放内存
             OPENSSL_free(temp_J);
@@ -648,7 +648,7 @@ public:
         for (int i = 0; i < user_count_advertiser; ++i)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
-            char *temp_L = EC_POINT_point2hex(w1->get_curve(), message->L[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            char *temp_L = EC_POINT_point2hex(w1->get_curve(), message_p3->L[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
             char *temp_A = EC_POINT_point2hex(w1->get_curve(), A[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
             Y[i] = temp_L;
 // 线程安全
@@ -756,8 +756,7 @@ public:
     }
     // set user_count
     void set_user_count(int user_count) { this->user_count_advertiser = user_count; }
-    // get proof
-    Proof *get_proof() { return proof; }
+
     // get skA
     BIGNUM *get_skA() { return skA; }
     // set Sum_d
@@ -773,6 +772,10 @@ public:
         message_p3 = new Message_P3(w1->get_curve(), message, user_count_advertiser, user_count_platform, ctx);
     }
 
-    Message_A2 *get_message_a2() { return new Message_A2(w1->get_curve(), message_a2); }
-    Message_A4 *get_message_a4() { return new Message_A4(w1->get_curve(), message_a4); }
+    std::string get_proof(BN_CTX *ctx) { return proof->serialize(w1->get_curve(), ctx); }
+    std::string get_message_a2(BN_CTX *ctx)
+    {
+        return message_a2->serialize(w1->get_curve(), ctx);
+    }
+    std::string get_message_a4(BN_CTX *ctx) { return message_a4->serialize(w1->get_curve(), ctx); }
 };

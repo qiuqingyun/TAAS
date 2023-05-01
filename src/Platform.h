@@ -49,11 +49,9 @@ public:
     }
 
     // 验证证明
-    bool proof_verify(Proof *proof, BN_CTX *ctx)
+    bool proof_verify(BN_CTX *ctx)
     {
         BN_CTX_start(ctx);
-        this->proof = new Proof(w1->get_curve(), proof);
-
         EC_POINT *left1 = EC_POINT_new(w1->get_curve());
         EC_POINT *right1 = EC_POINT_new(w1->get_curve());
         EC_POINT *left2 = EC_POINT_new(w1->get_curve());
@@ -223,7 +221,7 @@ public:
         BN_CTX_end(ctx);
     }
 
-    int round_P3(Message_A2 *message, BN_CTX *ctx)
+    int round_P3(BN_CTX *ctx)
     {
         BN_CTX_start(ctx);
         message_p3 = new Message_P3();
@@ -238,8 +236,8 @@ public:
             // 计算哈希值x,y,z和ts
             BIGNUM *x = BN_hash(
                 w1->to_string(ctx),
-                EC_POINT_to_string(w1->get_curve(), message->CA[0], ctx));
-            std::string CB1_str = EC_POINT_to_string(w1->get_curve(), message->CB[0], ctx);
+                EC_POINT_to_string(w1->get_curve(), message_a2->CA[0], ctx));
+            std::string CB1_str = EC_POINT_to_string(w1->get_curve(), message_a2->CB[0], ctx);
             BIGNUM *y = BN_hash(
                 "1",
                 w1->to_string(ctx),
@@ -250,15 +248,15 @@ public:
                 CB1_str);
             BIGNUM *ts = BN_hash(
                 w1->to_string(ctx),
-                EC_POINT_to_string(w1->get_curve(), message->GS_, ctx),
-                EC_POINT_to_string(w1->get_curve(), message->pkA_, ctx));
+                EC_POINT_to_string(w1->get_curve(), message_a2->GS_, ctx),
+                EC_POINT_to_string(w1->get_curve(), message_a2->pkA_, ctx));
             // 保存CD的比较结果
             bool result_CD = true;
             // 保存 E_ = (x^1 + y*1 - z) * (x^2 + y*2 - z) * ... * (x^m + y*m - z)
             BIGNUM *E_ = BN_new();
             BN_one(E_);
             // 验证 F = C1*x^1 + C2*x^2 + ... + Cm*x^m，赋值 F' = C1*x^1
-            ElGamal_ciphertext *F_ = new ElGamal_ciphertext(w1->get_curve(), message->C[0]->C1, message->C[0]->C2);
+            ElGamal_ciphertext *F_ = new ElGamal_ciphertext(w1->get_curve(), message_a2->C[0]->C1, message_a2->C[0]->C2);
             ElGamal_mul(w1->get_curve(), F_, F_, x, ctx);
 // 并行化
 #pragma omp parallel for
@@ -271,14 +269,14 @@ public:
                 // 计算 CDj = y*CAj + CBj - z*G2
                 EC_POINT *CDj = EC_POINT_new(w1->get_curve());
                 EC_POINT *temp = EC_POINT_new(w1->get_curve());
-                EC_POINT_mul(w1->get_curve(), temp, NULL, message->CA[j], y, temp_ctx); // y*CAj
-                EC_POINT_add(w1->get_curve(), CDj, temp, message->CB[j], temp_ctx);     // y*CAj + CBj
+                EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->CA[j], y, temp_ctx); // y*CAj
+                EC_POINT_add(w1->get_curve(), CDj, temp, message_a2->CB[j], temp_ctx);     // y*CAj + CBj
                 EC_POINT_mul(w1->get_curve(), temp, NULL, w1->get_G2(), z, temp_ctx);
                 EC_POINT_invert(w1->get_curve(), temp, temp_ctx); // -z*G2
                 EC_POINT_add(w1->get_curve(), CDj, CDj, temp, temp_ctx);
 #pragma omp atomic
                 // 比较CD_[j]和CD[j]
-                result_CD &= (EC_POINT_cmp(w1->get_curve(), message->CD_[j], CDj, temp_ctx) == 0);
+                result_CD &= (EC_POINT_cmp(w1->get_curve(), message_a2->CD_[j], CDj, temp_ctx) == 0);
                 // 验证 E = (x^1 + y*1 - z) * (x^2 + y*2 - z) * ... * (x^m + y*m - z)
                 BIGNUM *temp1 = BN_new();
                 BIGNUM *temp2 = BN_new();
@@ -297,7 +295,7 @@ public:
                     BN_mod_exp(temp_x_j, x, j_bn, w1->get_order(), temp_ctx);
                     // 计算 Cj*x^j
                     ElGamal_ciphertext *temp_c = new ElGamal_ciphertext();
-                    ElGamal_mul(w1->get_curve(), temp_c, message->C[j], temp_x_j, temp_ctx);
+                    ElGamal_mul(w1->get_curve(), temp_c, message_a2->C[j], temp_x_j, temp_ctx);
 #pragma omp critical
                     // 累加 F' = F' + Cj*x^j
                     ElGamal_add(w1->get_curve(), F_, F_, temp_c, temp_ctx);
@@ -307,26 +305,26 @@ public:
                 // 计算哈希值 Sj = H(W1||C'1j||C'2j)
                 BIGNUM *Sj = BN_hash(
                     w1->to_string(temp_ctx),
-                    EC_POINT_to_string(w1->get_curve(), message->C1_[j], temp_ctx),
-                    EC_POINT_to_string(w1->get_curve(), message->C2_[j], temp_ctx));
+                    EC_POINT_to_string(w1->get_curve(), message_a2->C1_[j], temp_ctx),
+                    EC_POINT_to_string(w1->get_curve(), message_a2->C2_[j], temp_ctx));
                 // 验证 x_hatj*Pj + y_hatj*pkA = Sj*C1j + C'1j
                 EC_POINT *left1 = EC_POINT_new(w1->get_curve());
                 EC_POINT *temp_left1 = EC_POINT_new(w1->get_curve());
                 EC_POINT *right1 = EC_POINT_new(w1->get_curve());
-                EC_POINT_mul(w1->get_curve(), left1, NULL, P[j], message->x_hat[j], temp_ctx);               // x_hatj*Pj
-                EC_POINT_mul(w1->get_curve(), temp_left1, NULL, w1->get_pkA(), message->y_hat[j], temp_ctx); // y_hatj*pkA
-                EC_POINT_add(w1->get_curve(), left1, left1, temp_left1, temp_ctx);                           // x_hatj*Pj + y_hatj*pkA
-                EC_POINT_mul(w1->get_curve(), right1, NULL, message->C[j]->C1, Sj, temp_ctx);                // Sj*C1j
-                EC_POINT_add(w1->get_curve(), right1, right1, message->C1_[j], temp_ctx);                    // Sj*C1j + C'1j
+                EC_POINT_mul(w1->get_curve(), left1, NULL, P[j], message_a2->x_hat[j], temp_ctx);               // x_hatj*Pj
+                EC_POINT_mul(w1->get_curve(), temp_left1, NULL, w1->get_pkA(), message_a2->y_hat[j], temp_ctx); // y_hatj*pkA
+                EC_POINT_add(w1->get_curve(), left1, left1, temp_left1, temp_ctx);                              // x_hatj*Pj + y_hatj*pkA
+                EC_POINT_mul(w1->get_curve(), right1, NULL, message_a2->C[j]->C1, Sj, temp_ctx);                // Sj*C1j
+                EC_POINT_add(w1->get_curve(), right1, right1, message_a2->C1_[j], temp_ctx);                    // Sj*C1j + C'1j
 #pragma omp atomic
                 // 比较 left 和 right
                 result_4_3 &= (EC_POINT_cmp(w1->get_curve(), left1, right1, temp_ctx) == 0);
                 // 验证 y_hatj*Ha = Sj*C2j + C'2j
                 EC_POINT *left2 = EC_POINT_new(w1->get_curve());
                 EC_POINT *right2 = EC_POINT_new(w1->get_curve());
-                EC_POINT_mul(w1->get_curve(), left2, NULL, w1->get_Ha(), message->y_hat[j], temp_ctx); // y_hatj*Ha
-                EC_POINT_mul(w1->get_curve(), right2, NULL, message->C[j]->C2, Sj, temp_ctx);          // Sj*C2j
-                EC_POINT_add(w1->get_curve(), right2, right2, message->C2_[j], temp_ctx);              // Sj*C2j + C'2j
+                EC_POINT_mul(w1->get_curve(), left2, NULL, w1->get_Ha(), message_a2->y_hat[j], temp_ctx); // y_hatj*Ha
+                EC_POINT_mul(w1->get_curve(), right2, NULL, message_a2->C[j]->C2, Sj, temp_ctx);          // Sj*C2j
+                EC_POINT_add(w1->get_curve(), right2, right2, message_a2->C2_[j], temp_ctx);              // Sj*C2j + C'2j
 #pragma omp atomic
                 // 比较 left 和 right
                 result_4_4 &= (EC_POINT_cmp(w1->get_curve(), left2, right2, temp_ctx) == 0);
@@ -353,14 +351,14 @@ public:
                 return 1;
             }
             // 比较 E 和 E_
-            if (BN_cmp(message->E, E_) != 0)
+            if (BN_cmp(message_a2->E, E_) != 0)
             {
                 std::cout << "failed: P3" << std::endl;
                 std::cout << "E != E_" << std::endl;
                 return 1;
             }
             // 比较 F 和 F_
-            if (EC_POINT_cmp(w1->get_curve(), message->F->C1, F_->C1, ctx) != 0 || EC_POINT_cmp(w1->get_curve(), message->F->C2, F_->C2, ctx) != 0)
+            if (EC_POINT_cmp(w1->get_curve(), message_a2->F->C1, F_->C1, ctx) != 0 || EC_POINT_cmp(w1->get_curve(), message_a2->F->C2, F_->C2, ctx) != 0)
             {
                 std::cout << "failed: P3" << std::endl;
                 std::cout << "F != F_" << std::endl;
@@ -383,9 +381,9 @@ public:
             // 验证 skA_hat*G2 = ts*GS + GS'
             EC_POINT *left = EC_POINT_new(w1->get_curve());
             EC_POINT *right = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), left, NULL, w1->get_G2(), message->skA_hat, ctx); // skA_hat*G2
-            EC_POINT_mul(w1->get_curve(), right, NULL, message->GS, ts, ctx);               // ts*GS
-            EC_POINT_add(w1->get_curve(), right, right, message->GS_, ctx);                 // ts*GS + GS'
+            EC_POINT_mul(w1->get_curve(), left, NULL, w1->get_G2(), message_a2->skA_hat, ctx); // skA_hat*G2
+            EC_POINT_mul(w1->get_curve(), right, NULL, message_a2->GS, ts, ctx);               // ts*GS
+            EC_POINT_add(w1->get_curve(), right, right, message_a2->GS_, ctx);                 // ts*GS + GS'
             // 比较 left 和 right
             if (EC_POINT_cmp(w1->get_curve(), left, right, ctx) != 0)
             {
@@ -394,9 +392,9 @@ public:
                 return 1;
             }
             // 验证 skA_hat*Ha = ts*pkA + pkA'
-            EC_POINT_mul(w1->get_curve(), left, NULL, w1->get_Ha(), message->skA_hat, ctx); // skA_hat*Ha
-            EC_POINT_mul(w1->get_curve(), right, NULL, w1->get_pkA(), ts, ctx);             // ts*pkA
-            EC_POINT_add(w1->get_curve(), right, right, message->pkA_, ctx);                // ts*pkA + pkA'
+            EC_POINT_mul(w1->get_curve(), left, NULL, w1->get_Ha(), message_a2->skA_hat, ctx); // skA_hat*Ha
+            EC_POINT_mul(w1->get_curve(), right, NULL, w1->get_pkA(), ts, ctx);                // ts*pkA
+            EC_POINT_add(w1->get_curve(), right, right, message_a2->pkA_, ctx);                // ts*pkA + pkA'
             // 比较 left 和 right
             if (EC_POINT_cmp(w1->get_curve(), left, right, ctx) != 0)
             {
@@ -433,10 +431,10 @@ public:
             b[j] = BN_rand(256);
             // 计算 Jj = k2*Qj
             message_p3->J[j] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), message_p3->J[j], NULL, message->Q[j], k2, temp_ctx);
+            EC_POINT_mul(w1->get_curve(), message_p3->J[j], NULL, message_a2->Q[j], k2, temp_ctx);
             // 计算 Q' = Q' + bj*Qj
             EC_POINT *temp = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), temp, NULL, message->Q[j], b[j], temp_ctx);
+            EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->Q[j], b[j], temp_ctx);
 // 线程安全
 #pragma omp critical
             // 累加 Q'
@@ -471,11 +469,11 @@ public:
             c[i] = BN_rand(256);
             // 计算 Li = k3*k2*Ai
             message_p3->L[i] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), message_p3->L[i], NULL, message->A[i], k3, temp_ctx);
+            EC_POINT_mul(w1->get_curve(), message_p3->L[i], NULL, message_a2->A[i], k3, temp_ctx);
             EC_POINT_mul(w1->get_curve(), message_p3->L[i], NULL, message_p3->L[i], k2, temp_ctx);
             // 计算 A' = A' + ci*Ai
             EC_POINT *temp = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), temp, NULL, message->A[i], c[i], temp_ctx);
+            EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->A[i], c[i], temp_ctx);
 // 线程安全
 #pragma omp critical
             // 累加 A'
@@ -521,29 +519,29 @@ public:
         return 0;
     }
 
-    int round_P5(Message_A4 *message, BN_CTX *ctx)
+    int round_P5(BN_CTX *ctx)
     {
         BN_CTX_start(ctx);
         // 计算哈希值 tb = H(W1||GK'||pkA'')
         BIGNUM *tb = BN_hash(
             w1->to_string(ctx),
-            EC_POINT_to_string(w1->get_curve(), message->GK_, ctx),
-            EC_POINT_to_string(w1->get_curve(), message->pkA__, ctx));
+            EC_POINT_to_string(w1->get_curve(), message_a4->GK_, ctx),
+            EC_POINT_to_string(w1->get_curve(), message_a4->pkA__, ctx));
         // 验证 skA'_hat*Ga = tb*GK + GK'
         EC_POINT *left = EC_POINT_new(w1->get_curve());
         EC_POINT *right = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), left, NULL, w1->get_Ga(), message->skA_hat_, ctx);
-        EC_POINT_mul(w1->get_curve(), right, NULL, message->GK, tb, ctx);
-        EC_POINT_add(w1->get_curve(), right, right, message->GK_, ctx);
+        EC_POINT_mul(w1->get_curve(), left, NULL, w1->get_Ga(), message_a4->skA_hat_, ctx);
+        EC_POINT_mul(w1->get_curve(), right, NULL, message_a4->GK, tb, ctx);
+        EC_POINT_add(w1->get_curve(), right, right, message_a4->GK_, ctx);
         if (EC_POINT_cmp(w1->get_curve(), left, right, ctx) != 0)
         {
             std::cout << "failed: P5" << std::endl;
             std::cout << "skA_hat_*Ga != tb*GK + GK'" << std::endl;
         }
         // 验证 skA'_hat*Ha = tb*pkA + pkA''
-        EC_POINT_mul(w1->get_curve(), left, NULL, w1->get_Ha(), message->skA_hat_, ctx);
+        EC_POINT_mul(w1->get_curve(), left, NULL, w1->get_Ha(), message_a4->skA_hat_, ctx);
         EC_POINT_mul(w1->get_curve(), right, NULL, w1->get_pkA(), tb, ctx);
-        EC_POINT_add(w1->get_curve(), right, right, message->pkA__, ctx);
+        EC_POINT_add(w1->get_curve(), right, right, message_a4->pkA__, ctx);
         if (EC_POINT_cmp(w1->get_curve(), left, right, ctx) != 0)
         {
             std::cout << "failed: P5" << std::endl;
@@ -558,11 +556,21 @@ public:
         return 0;
     }
 
+    void set_proof(std::string message, BN_CTX *ctx)
+    {
+        proof = new Proof(w1->get_curve(), message, user_count_advertiser, ctx);
+    }
+
     void set_message_a2(std::string message, BN_CTX *ctx)
     {
         message_a2 = new Message_A2(w1->get_curve(), message, user_count_advertiser, user_count_platform, ctx);
     }
 
-    Message_P1 *get_message_p1() { return new Message_P1(w1->get_curve(), message_p1); }
-    Message_P3 *get_message_p3() { return new Message_P3(w1->get_curve(), message_p3); }
+    void set_message_a4(std::string message, BN_CTX *ctx)
+    {
+        message_a4 = new Message_A4(w1->get_curve(), message, ctx);
+    }
+
+    std::string get_message_p1(BN_CTX *ctx) { return message_p1->serialize(w1->get_curve(), ctx); }
+    std::string get_message_p3(BN_CTX *ctx) { return message_p3->serialize(w1->get_curve(), ctx); }
 };

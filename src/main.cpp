@@ -130,14 +130,15 @@ int main(int argc, char *argv[])
     auto end_advertiser = std::chrono::high_resolution_clock::now();                                                           // 记录结束时间
     auto duration_advertiser_batch = std::chrono::duration_cast<std::chrono::microseconds>(end_advertiser - start_advertiser); // 计算运行时间
     // 获取证明
-    Proof *proof_batch = new Proof(w1.get_curve(), advertiser.get_proof());
+    std::string proof_batch = advertiser.get_proof(ctx);
     // 计算证明的尺寸
-    size_t proof_size_batch = proof_batch->get_size(w1.get_curve(), ctx);
+    size_t proof_size_batch = proof_batch.size();
     // 广告平台
     auto start_platform = std::chrono::high_resolution_clock::now(); // 记录开始时间
     Platform platform(&w1, user_count_advertiser, user_count_platform, user_id_platform);
     // 验证广告主的证明
-    bool result_batch = platform.proof_verify(proof_batch, ctx);
+    platform.set_proof(proof_batch, ctx);
+    bool result_batch = platform.proof_verify(ctx);
     if (!result_batch)
     {
         std::cout << "proof verify failed" << std::endl;
@@ -146,47 +147,49 @@ int main(int argc, char *argv[])
 
     auto end_platform = std::chrono::high_resolution_clock::now();                                                       // 记录结束时间
     auto duration_platform_batch = std::chrono::duration_cast<std::chrono::microseconds>(end_platform - start_platform); // 计算运行时间
-    // 释放内存
-    delete proof_batch;
 
     auto start_platform_A1 = std::chrono::high_resolution_clock::now(); // 记录开始时间
     platform.round_P1(ctx);
     auto end_platform_A1 = std::chrono::high_resolution_clock::now();                                                       // 记录结束时间
     auto duration_platform_A1 = std::chrono::duration_cast<std::chrono::microseconds>(end_platform_A1 - start_platform_A1); // 计算运行时间
-    Message_P1 *message_p1 = platform.get_message_p1();
+    std::string message_p1 = platform.get_message_p1(ctx);
 
+    advertiser.set_message_p1(message_p1, ctx);
     auto start_advertiser_A2 = std::chrono::high_resolution_clock::now(); // 记录开始时间
-    if (advertiser.round_A2(message_p1, ctx))
+    if (advertiser.round_A2(ctx))
     {
         std::cout << "round_A2 verify failed" << std::endl;
         return 1;
     }
     auto end_advertiser_A2 = std::chrono::high_resolution_clock::now();                                                           // 记录结束时间
     auto duration_advertiser_A2 = std::chrono::duration_cast<std::chrono::microseconds>(end_advertiser_A2 - start_advertiser_A2); // 计算运行时间
-    Message_A2 *message_a2 = advertiser.get_message_a2();
+    std::string message_a2 = advertiser.get_message_a2(ctx);
 
+    platform.set_message_a2(message_a2, ctx);
     auto start_platform_P3 = std::chrono::high_resolution_clock::now(); // 记录开始时间
-    if (platform.round_P3(message_a2, ctx))
+    if (platform.round_P3(ctx))
     {
         std::cout << "round_P3 verify failed" << std::endl;
         return 1;
     }
     auto end_platform_P3 = std::chrono::high_resolution_clock::now();                                                       // 记录结束时间
     auto duration_platform_P3 = std::chrono::duration_cast<std::chrono::microseconds>(end_platform_P3 - start_platform_P3); // 计算运行时间
-    Message_P3 *message_p3 = platform.get_message_p3();
+    std::string message_p3 = platform.get_message_p3(ctx);
 
+    advertiser.set_message_p3(message_p3, ctx);
     auto start_advertiser_A4 = std::chrono::high_resolution_clock::now(); // 记录开始时间
-    if (advertiser.round_A4(message_p3, ctx))
+    if (advertiser.round_A4(ctx))
     {
         std::cout << "round_A4 verify failed" << std::endl;
         return 1;
     }
     auto end_advertiser_A4 = std::chrono::high_resolution_clock::now();                                                           // 记录结束时间
     auto duration_advertiser_A4 = std::chrono::duration_cast<std::chrono::microseconds>(end_advertiser_A4 - start_advertiser_A4); // 计算运行时间
-    Message_A4 *message_a4 = advertiser.get_message_a4();
+    std::string message_a4 = advertiser.get_message_a4(ctx);
 
+    platform.set_message_a4(message_a4, ctx);
     auto start_platform_P5 = std::chrono::high_resolution_clock::now(); // 记录开始时间
-    if (platform.round_P5(message_a4, ctx))
+    if (platform.round_P5(ctx))
     {
         std::cout << "round_P5 verify failed" << std::endl;
         return 1;
@@ -196,21 +199,14 @@ int main(int argc, char *argv[])
     // psi的总时间
     auto duration_psi = duration_platform_A1 + duration_advertiser_A2 + duration_platform_P3 + duration_advertiser_A4 + duration_platform_P5;
     // 计算消息的尺寸
-    size_t message_p1_size = message_p1->get_size(w1.get_curve(), ctx);
-    size_t message_a2_size = message_a2->get_size(w1.get_curve(), ctx);
-    size_t message_p3_size = message_p3->get_size(w1.get_curve(), ctx);
-    size_t message_a4_size = message_a4->get_size(w1.get_curve(), ctx);
+    size_t message_p1_size = message_p1.size();
+    size_t message_a2_size = message_a2.size();
+    size_t message_p3_size = message_p3.size();
+    size_t message_a4_size = message_a4.size();
     // 消息的总尺寸
     size_t message_size = message_p1_size + message_a2_size + message_p3_size + message_a4_size;
 
     // 释放内存
-    delete message_p1;
-    delete message_a2;
-    delete message_p3;
-    delete message_a4;
-    // 释放ctx,user_data_advertiser,user_id_platform,Sum,Sum_d,U_Evidence
-
-    // 循环释放user_id_platform
     for (int i = 0; i < user_count_platform; i++)
     {
         BN_free(user_id_platform[i]);

@@ -71,6 +71,14 @@ public:
         BN_CTX_end(ctx);
         return message;
     }
+
+    void insert(EC_GROUP *curve, Messages::Msg_ElGamal_ciphertext *target, BN_CTX *ctx)
+    {
+        Messages::Msg_ElGamal_ciphertext *serialized = serialize(curve, ctx);
+        target->CopyFrom(*serialized);
+        delete serialized;
+        serialized = nullptr;
+    }
 };
 
 int ElGamal_ciphertext_cmp(EC_GROUP *curve, ElGamal_ciphertext *ciphertext1, ElGamal_ciphertext *ciphertext2, BN_CTX *ctx)

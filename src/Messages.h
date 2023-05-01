@@ -30,7 +30,7 @@ public:
 class Proof
 {
 public:
-    int user_count;
+    int user_count_advertiser;
     EC_POINT *W, *W_, *C1, *C1_, *U_, *A_, *D_, **U, **A, **D;
     BIGNUM *k_hat, *x_hat, *y_hat;
 
@@ -47,7 +47,7 @@ public:
         EC_POINT_free(U_);
         EC_POINT_free(A_);
         EC_POINT_free(D_);
-        for (int i = 0; i < user_count; i++)
+        for (int i = 0; i < user_count_advertiser; i++)
         {
             EC_POINT_free(U[i]);
             EC_POINT_free(A[i]);
@@ -64,7 +64,7 @@ public:
     // 使用COPY深拷贝构造函数
     Proof(EC_GROUP *curve, Proof *proof)
     {
-        user_count = proof->user_count;
+        user_count_advertiser = proof->user_count_advertiser;
         W = EC_POINT_new(curve);
         EC_POINT_copy(W, proof->W);
         W_ = EC_POINT_new(curve);
@@ -79,10 +79,10 @@ public:
         EC_POINT_copy(A_, proof->A_);
         D_ = EC_POINT_new(curve);
         EC_POINT_copy(D_, proof->D_);
-        U = new EC_POINT *[user_count];
-        A = new EC_POINT *[user_count];
-        D = new EC_POINT *[user_count];
-        for (int i = 0; i < user_count; i++)
+        U = new EC_POINT *[user_count_advertiser];
+        A = new EC_POINT *[user_count_advertiser];
+        D = new EC_POINT *[user_count_advertiser];
+        for (int i = 0; i < user_count_advertiser; i++)
         {
             U[i] = EC_POINT_new(curve);
             EC_POINT_copy(U[i], proof->U[i]);
@@ -94,6 +94,34 @@ public:
         k_hat = BN_dup(proof->k_hat);
         x_hat = BN_dup(proof->x_hat);
         y_hat = BN_dup(proof->y_hat);
+    }
+
+    // 从string反序列化
+    Proof(EC_GROUP *curve, std::string message, int user_count_advertiser, BN_CTX *ctx)
+    {
+        this->user_count_advertiser = user_count_advertiser;
+        Messages::Msg_Proof msg_proof;
+        msg_proof.ParseFromString(message);
+        BN_CTX_start(ctx);
+        W = EC_POINT_deserialize(curve, msg_proof.w(), ctx);
+        W_ = EC_POINT_deserialize(curve, msg_proof.w_prime(), ctx);
+        C1 = EC_POINT_deserialize(curve, msg_proof.c1(), ctx);
+        C1_ = EC_POINT_deserialize(curve, msg_proof.c1_prime(), ctx);
+        U_ = EC_POINT_deserialize(curve, msg_proof.u_prime(), ctx);
+        A_ = EC_POINT_deserialize(curve, msg_proof.a_prime(), ctx);
+        D_ = EC_POINT_deserialize(curve, msg_proof.d_prime(), ctx);
+        k_hat = BN_deserialize(msg_proof.k_hat());
+        x_hat = BN_deserialize(msg_proof.x_hat());
+        y_hat = BN_deserialize(msg_proof.y_hat());
+        U = new EC_POINT *[user_count_advertiser];
+        A = new EC_POINT *[user_count_advertiser];
+        D = new EC_POINT *[user_count_advertiser];
+        for (int i = 0; i < user_count_advertiser; i++)
+        {
+            U[i] = EC_POINT_deserialize(curve, msg_proof.u(i), ctx);
+            A[i] = EC_POINT_deserialize(curve, msg_proof.a(i), ctx);
+            D[i] = EC_POINT_deserialize(curve, msg_proof.d(i), ctx);
+        }
     }
 
     // 获取Proof的字节数
@@ -109,7 +137,7 @@ public:
         size += EC_POINT_point2oct(curve, U_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
         size += EC_POINT_point2oct(curve, A_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
         size += EC_POINT_point2oct(curve, D_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        for (int i = 0; i < user_count; i++)
+        for (int i = 0; i < user_count_advertiser; i++)
         {
             size += EC_POINT_point2oct(curve, U[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
             size += EC_POINT_point2oct(curve, A[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
@@ -123,49 +151,34 @@ public:
         return size;
     }
 
-    size_t serializePoint(EC_POINT *input, std::stringstream &ss, EC_GROUP *curve, BN_CTX *ctx)
-    {
-        size_t size = EC_POINT_point2oct(curve, W, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        unsigned char *buffer = new unsigned char[size];
-        EC_POINT_point2oct(curve, input, POINT_CONVERSION_UNCOMPRESSED, buffer, size, ctx);
-        ss.write((char *)buffer, size);
-        delete[] buffer;
-        return size;
-    }
-
-    size_t serializeBN(BIGNUM *input, std::stringstream &ss)
-    {
-        size_t size = BN_num_bytes(input);
-        unsigned char *buffer = new unsigned char[size];
-        BN_bn2bin(input, buffer);
-        ss.write((char *)buffer, size);
-        delete[] buffer;
-        return size;
-    }
-
-    // 序列化Proof
-    std::string serialize(int user_count, EC_GROUP *curve, BN_CTX *ctx)
+    // 序列化
+    std::string serialize(EC_GROUP *curve, BN_CTX *ctx)
     {
         BN_CTX_start(ctx);
         std::string output;
+        Messages::Msg_Proof msg_proof;
         // 序列化*W, *W_, *C1, *C1_, *U_, *A_, *D_, **U, **A, **D
-
+        msg_proof.set_w(EC_POINT_serialize(curve, W, ctx));
+        msg_proof.set_w_prime(EC_POINT_serialize(curve, W_, ctx));
+        msg_proof.set_c1(EC_POINT_serialize(curve, C1, ctx));
+        msg_proof.set_c1_prime(EC_POINT_serialize(curve, C1_, ctx));
+        msg_proof.set_u_prime(EC_POINT_serialize(curve, U_, ctx));
+        msg_proof.set_a_prime(EC_POINT_serialize(curve, A_, ctx));
+        msg_proof.set_d_prime(EC_POINT_serialize(curve, D_, ctx));
+        for (int i = 0; i < user_count_advertiser; i++)
+        {
+            msg_proof.add_u(EC_POINT_serialize(curve, U[i], ctx));
+            msg_proof.add_a(EC_POINT_serialize(curve, A[i], ctx));
+            msg_proof.add_d(EC_POINT_serialize(curve, D[i], ctx));
+        }
         // 序列化k_hat, x_hat, y_hat
-
+        msg_proof.set_k_hat(BN_serialize(k_hat));
+        msg_proof.set_x_hat(BN_serialize(x_hat));
+        msg_proof.set_y_hat(BN_serialize(y_hat));
+        // 将序列化后的Proof写入字符串
+        msg_proof.SerializeToString(&output);
         BN_CTX_end(ctx);
         return output;
-    }
-
-    // 反序列化Proof
-    void deserialize(std::string input, int user_count, EC_GROUP *curve, BN_CTX *ctx)
-    {
-        BN_CTX_start(ctx);
-        std::stringstream ss(input);
-        // 反序列化*W, *W_, *C1, *C1_, *U_, *A_, *D_, **U, **A, **D
-
-        // 反序列化k_hat, x_hat, y_hat
-
-        BN_CTX_end(ctx);
     }
 };
 
@@ -252,6 +265,25 @@ public:
         size += BN_num_bytes(Z_hat);
         BN_CTX_end(ctx);
         return size;
+    }
+
+    // 序列化
+    std::string serialize(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        std::string output;
+        Messages::Msg_P1 msg_p1;
+        // 序列化P_, **P, Z_hat
+        msg_p1.set_p_prime(EC_POINT_serialize(curve, P_, ctx));
+        for (int i = 0; i < user_count_platform; i++)
+        {
+            msg_p1.add_p(EC_POINT_serialize(curve, P[i], ctx));
+        }
+        msg_p1.set_z_hat(BN_serialize(Z_hat));
+        // 将序列化后的P1写入字符串
+        msg_p1.SerializeToString(&output);
+        BN_CTX_end(ctx);
+        return output;
     }
 };
 
@@ -362,8 +394,8 @@ public:
             Q[i] = EC_POINT_deserialize(curve, msg_a2.q(i), ctx);
             C1_[i] = EC_POINT_deserialize(curve, msg_a2.c1_prime(i), ctx);
             C2_[i] = EC_POINT_deserialize(curve, msg_a2.c2_prime(i), ctx);
-            x_hat[i] = BN_bin2bn((const unsigned char *)msg_a2.x_hat(i).c_str(), msg_a2.x_hat(i).length(), NULL);
-            y_hat[i] = BN_bin2bn((const unsigned char *)msg_a2.y_hat(i).c_str(), msg_a2.y_hat(i).length(), NULL);
+            x_hat[i] = BN_deserialize(msg_a2.x_hat(i));
+            y_hat[i] = BN_deserialize(msg_a2.y_hat(i));
         }
         for (int i = 0; i < user_count_advertiser; i++)
         {
@@ -592,6 +624,43 @@ public:
         BN_CTX_end(ctx);
         return size;
     }
+
+    // 序列化
+    std::string serialize(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        std::string output;
+        Messages::Msg_A2 msg_a2;
+        // 将C,C_,CA,CB,CD_,A,E,F,Q,GS_,GS,pkA_,skA_hat,C1_,C2_,x_hat,y_hat序列化
+        for (int j = 0; j < user_count_platform; j++)
+        {
+            C[j]->insert(curve, msg_a2.add_c(), ctx);
+            C_[j]->insert(curve, msg_a2.add_c_prime(), ctx);
+            msg_a2.add_ca(EC_POINT_serialize(curve, CA[j], ctx));
+            msg_a2.add_cb(EC_POINT_serialize(curve, CB[j], ctx));
+            msg_a2.add_cd_prime(EC_POINT_serialize(curve, CD_[j], ctx));
+            msg_a2.add_q(EC_POINT_serialize(curve, Q[j], ctx));
+            msg_a2.add_c1_prime(EC_POINT_serialize(curve, C1_[j], ctx));
+            msg_a2.add_c2_prime(EC_POINT_serialize(curve, C2_[j], ctx));
+            msg_a2.add_x_hat(BN_serialize(x_hat[j]));
+            msg_a2.add_y_hat(BN_serialize(y_hat[j]));
+        }
+        for (int i = 0; i < user_count_advertiser; i++)
+        {
+            msg_a2.add_a(EC_POINT_serialize(curve, A[i], ctx));
+        }
+        msg_a2.set_e(BN_serialize(E));
+        F->insert(curve, msg_a2.mutable_f(), ctx);
+        msg_a2.set_gs(EC_POINT_serialize(curve, GS, ctx));
+        msg_a2.set_gs_prime(EC_POINT_serialize(curve, GS_, ctx));
+        msg_a2.set_pka_prime(EC_POINT_serialize(curve, pkA_, ctx));
+        msg_a2.set_ska_hat(BN_serialize(skA_hat));
+
+        // 将序列化后的A2写入字符串
+        msg_a2.SerializeToString(&output);
+        BN_CTX_end(ctx);
+        return output;
+    }
 };
 
 class Message_P3
@@ -767,6 +836,33 @@ public:
         BN_CTX_end(ctx);
         return size;
     }
+
+    // 序列化
+    std::string serialize(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        std::string output;
+        Messages::Msg_P3 msg_p3;
+        for (int j = 0; j < user_count_platform; j++)
+        {
+            msg_p3.add_j(EC_POINT_serialize(curve, J[j], ctx));
+        }
+        for (int i = 0; i < user_count_advertiser; i++)
+        {
+            msg_p3.add_l(EC_POINT_serialize(curve, L[i], ctx));
+        }
+        msg_p3.set_k2_hat(BN_serialize(k2_hat));
+        msg_p3.set_c2(EC_POINT_serialize(curve, C2, ctx));
+        msg_p3.set_c2_prime(EC_POINT_serialize(curve, C2_, ctx));
+        msg_p3.set_c3(EC_POINT_serialize(curve, C3, ctx));
+        msg_p3.set_c3_prime(EC_POINT_serialize(curve, C3_, ctx));
+        msg_p3.set_kq_hat(BN_serialize(kq_hat));
+        msg_p3.set_q_prime(EC_POINT_serialize(curve, Q_, ctx));
+        msg_p3.set_a_prime(EC_POINT_serialize(curve, A_, ctx));
+        msg_p3.SerializeToString(&output);
+        BN_CTX_end(ctx);
+        return output;
+    }
 };
 
 class Message_A4
@@ -850,5 +946,30 @@ public:
         size += BN_bn2mpi(skA_hat_, NULL);
         BN_CTX_end(ctx);
         return size;
+    }
+
+    // 序列化
+    std::string serialize(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        std::string output;
+        Messages::Msg_A4 msg_a4;
+        if (Sum != nullptr)
+        {
+            msg_a4.set_sum(BN_serialize(Sum));
+        }
+        else
+        {
+            BIGNUM *zero = BN_new();
+            BN_zero(zero);
+            msg_a4.set_sum(BN_serialize(zero));
+        }
+        msg_a4.set_gk(EC_POINT_serialize(curve, GK, ctx));
+        msg_a4.set_gk_prime(EC_POINT_serialize(curve, GK_, ctx));
+        msg_a4.set_pka_prime_prime(EC_POINT_serialize(curve, pkA__, ctx));
+        msg_a4.set_ska_hat_prime(BN_serialize(skA_hat_));
+        msg_a4.SerializeToString(&output);
+        BN_CTX_end(ctx);
+        return output;
     }
 };
