@@ -24,6 +24,9 @@ class Advertiser
     std::unordered_map<std::string, Messages::Msg_ElGamal_ciphertext> *A_V = nullptr;
     BIGNUM *skA_ = nullptr;
 
+    Message_P1 *message_p1 = nullptr;
+    Message_P3 *message_p3 = nullptr;
+
     // debug
     EC_POINT *Sum_d = nullptr;
 
@@ -56,8 +59,12 @@ public:
         }
         if (proof != nullptr)
             delete proof;
+        if (message_p1 != nullptr)
+            delete message_p1;
         if (message_a2 != nullptr)
             delete message_a2;
+        if (message_p3 != nullptr)
+            delete message_p3;
         if (message_a4 != nullptr)
             delete message_a4;
         // 释放k1，A，A_V，skA_，Sum_d
@@ -689,9 +696,9 @@ public:
             BN_free(zero);
         }
         // 解密Sum_E
-        message_a4->Sum_D = ElGamal_decrypt(w1, skA, Sum_E, ctx);
+        EC_POINT *Sum_D = ElGamal_decrypt(w1, skA, Sum_E, ctx);
         // 测试Sum_D是否等于Sum_d
-        if (EC_POINT_cmp(w1->get_curve(), message_a4->Sum_D, Sum_d, ctx) != 0)
+        if (EC_POINT_cmp(w1->get_curve(), Sum_D, Sum_d, ctx) != 0)
         {
             std::cout << "failed: A4" << std::endl;
             std::cout << "Sum_D != Sum_d" << std::endl;
@@ -722,6 +729,7 @@ public:
         delete[] Y;
         delete intersection;
         delete Sum_E;
+        EC_POINT_free(Sum_D);
         BN_free(skA__);
         BN_free(tb);
         BN_CTX_end(ctx);
@@ -754,6 +762,16 @@ public:
     BIGNUM *get_skA() { return skA; }
     // set Sum_d
     void debug_set_Sum_d(EC_POINT *Sum_d) { this->Sum_d = Sum_d; }
+
+    void set_message_p1(std::string message, BN_CTX *ctx)
+    {
+        message_p1 = new Message_P1(w1->get_curve(), message, user_count_platform, ctx);
+    }
+
+    void set_message_p3(std::string message, BN_CTX *ctx)
+    {
+        message_p3 = new Message_P3(w1->get_curve(), message, user_count_advertiser, user_count_platform, ctx);
+    }
 
     Message_A2 *get_message_a2() { return new Message_A2(w1->get_curve(), message_a2); }
     Message_A4 *get_message_a4() { return new Message_A4(w1->get_curve(), message_a4); }

@@ -14,7 +14,9 @@ class Platform
     // 证明Proof
     Proof *proof = nullptr;
     Message_P1 *message_p1 = nullptr;
+    Message_A2 *message_a2 = nullptr;
     Message_P3 *message_p3 = nullptr;
+    Message_A4 *message_a4 = nullptr;
 
     // 共享变量
     BIGNUM *k2 = BN_rand(256);
@@ -29,8 +31,14 @@ public:
     ~Platform()
     {
         delete proof;
-        delete message_p1;
-        delete message_p3;
+        if (message_p1 != nullptr)
+            delete message_p1;
+        if (message_a2 != nullptr)
+            delete message_a2;
+        if (message_p3 != nullptr)
+            delete message_p3;
+        if (message_a4 != nullptr)
+            delete message_a4;
         BN_free(k2);
         BN_free(k3);
         for (int j = 0; j < user_count_platform; j++)
@@ -548,6 +556,11 @@ public:
         BN_free(tb);
         BN_CTX_end(ctx);
         return 0;
+    }
+
+    void set_message_a2(std::string message, BN_CTX *ctx)
+    {
+        message_a2 = new Message_A2(w1->get_curve(), message, user_count_advertiser, user_count_platform, ctx);
     }
 
     Message_P1 *get_message_p1() { return new Message_P1(w1->get_curve(), message_p1); }

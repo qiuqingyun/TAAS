@@ -117,6 +117,6 @@ message Msg_A4{
     bytes Sum = 1;
     bytes GK = 2;
     bytes GK_prime = 3;
-    bytes pkA__ = 4;
-    bytes skA_hat_ = 5;
+    bytes pkA_prime_prime = 4;
+    bytes skA_hat_prime = 5;
 }

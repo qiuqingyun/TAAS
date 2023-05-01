@@ -1,23 +1,16 @@
 # 执行build/bin/main，并解析json输出
 
-# 设置数组变量input_size为2^0 2^10 2^12 2^14 2^16 2^18 2^20 2^22 2^24
-# input_size=(1 1024 4096 16384 65536 262144 1048576 4194304 16777216)
-# 设置数组变量input_size为2^0 2^10 2^12 2^14 2^16 2^18 2^20
-input_size=(1 1024 4096 16384 65536 262144 1048576)
-# 设置数组变量threads为0 1
-threads=(0 1)
-# input_size=(4194304 16777216)
-# input_size=(1 2 4 8 16)
-# input_size=(1)
+# 1 1024 4096 16384 65536 262144 1048576
 
 # 删除result.log
 rm -rf ./result.log
 
 # 循环遍历数组，并作为main的参数
-for thread in ${threads[@]}
+for thread in 0 1
 do
     echo -e "\n==== Threads: $thread ====\n" >> ./result.log
-    for i in ${input_size[@]}
+    # 循环遍历input_size数组
+    for i in 1 1024 4096 16384 65536 262144 1048576
     do
         # 执行main，并将输出结果保存到变量result
         result=$(../build/bin/main $i $thread)

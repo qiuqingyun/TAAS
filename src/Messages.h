@@ -194,6 +194,23 @@ public:
         Z_hat = BN_dup(message->Z_hat);
     }
 
+    // 从string反序列化
+    Message_P1(EC_GROUP *curve, std::string message, int user_count_platform, BN_CTX *ctx)
+    {
+        this->user_count_platform = user_count_platform;
+        Messages::Msg_P1 msg_p1;
+        msg_p1.ParseFromString(message);
+        BN_CTX_start(ctx);
+        P_ = EC_POINT_deserialize(curve, msg_p1.p_prime(), ctx);
+        P = new EC_POINT *[user_count_platform];
+        for (int i = 0; i < user_count_platform; i++)
+        {
+            P[i] = EC_POINT_deserialize(curve, msg_p1.p(i), ctx);
+        }
+        Z_hat = BN_deserialize(msg_p1.z_hat());
+        BN_CTX_end(ctx);
+    }
+
     // 释放内存
     ~Message_P1()
     {
@@ -315,6 +332,49 @@ public:
             EC_POINT_copy(C1_[i], message->C1_[i]);
             EC_POINT_copy(C2_[i], message->C2_[i]);
         }
+    }
+
+    // 从string反序列化
+    Message_A2(EC_GROUP *curve, std::string message, int user_count_advertiser, int user_count_platform, BN_CTX *ctx)
+    {
+        this->user_count_advertiser = user_count_advertiser;
+        this->user_count_platform = user_count_platform;
+        Messages::Msg_A2 msg_a2;
+        msg_a2.ParseFromString(message);
+        C = new ElGamal_ciphertext *[user_count_platform];
+        C_ = new ElGamal_ciphertext *[user_count_platform];
+        CA = new EC_POINT *[user_count_platform];
+        CB = new EC_POINT *[user_count_platform];
+        CD_ = new EC_POINT *[user_count_platform];
+        A = new EC_POINT *[user_count_advertiser];
+        Q = new EC_POINT *[user_count_platform];
+        C1_ = new EC_POINT *[user_count_platform];
+        C2_ = new EC_POINT *[user_count_platform];
+        x_hat = new BIGNUM *[user_count_platform];
+        y_hat = new BIGNUM *[user_count_platform];
+        for (int i = 0; i < user_count_platform; i++)
+        {
+            C[i] = new ElGamal_ciphertext(curve, msg_a2.c(i), ctx);
+            C_[i] = new ElGamal_ciphertext(curve, msg_a2.c_prime(i), ctx);
+            CA[i] = EC_POINT_deserialize(curve, msg_a2.ca(i), ctx);
+            CB[i] = EC_POINT_deserialize(curve, msg_a2.cb(i), ctx);
+            CD_[i] = EC_POINT_deserialize(curve, msg_a2.cd_prime(i), ctx);
+            Q[i] = EC_POINT_deserialize(curve, msg_a2.q(i), ctx);
+            C1_[i] = EC_POINT_deserialize(curve, msg_a2.c1_prime(i), ctx);
+            C2_[i] = EC_POINT_deserialize(curve, msg_a2.c2_prime(i), ctx);
+            x_hat[i] = BN_bin2bn((const unsigned char *)msg_a2.x_hat(i).c_str(), msg_a2.x_hat(i).length(), NULL);
+            y_hat[i] = BN_bin2bn((const unsigned char *)msg_a2.y_hat(i).c_str(), msg_a2.y_hat(i).length(), NULL);
+        }
+        for (int i = 0; i < user_count_advertiser; i++)
+        {
+            A[i] = EC_POINT_deserialize(curve, msg_a2.a(i), ctx);
+        }
+        E = BN_deserialize(msg_a2.e());
+        F = new ElGamal_ciphertext(curve, msg_a2.f(), ctx);
+        GS_ = EC_POINT_deserialize(curve, msg_a2.gs_prime(), ctx);
+        GS = EC_POINT_deserialize(curve, msg_a2.gs(), ctx);
+        pkA_ = EC_POINT_deserialize(curve, msg_a2.pka_prime(), ctx);
+        skA_hat = BN_deserialize(msg_a2.ska_hat());
     }
 
     // 释放内存
@@ -585,6 +645,33 @@ public:
         EC_POINT_copy(A_, message->A_);
     }
 
+    // 从string反序列化
+    Message_P3(EC_GROUP *curve, std::string message, int user_count_advertiser, int user_count_platform, BN_CTX *ctx)
+    {
+        this->user_count_advertiser = user_count_advertiser;
+        this->user_count_platform = user_count_platform;
+        Messages::Msg_P3 msg_p3;
+        msg_p3.ParseFromString(message);
+        J = new EC_POINT *[user_count_platform];
+        L = new EC_POINT *[user_count_advertiser];
+        for (int j = 0; j < user_count_platform; j++)
+        {
+            J[j] = EC_POINT_deserialize(curve, msg_p3.j(j), ctx);
+        }
+        for (int i = 0; i < user_count_advertiser; i++)
+        {
+            L[i] = EC_POINT_deserialize(curve, msg_p3.l(i), ctx);
+        }
+        k2_hat = BN_deserialize(msg_p3.k2_hat());
+        C2 = EC_POINT_deserialize(curve, msg_p3.c2(), ctx);
+        C2_ = EC_POINT_deserialize(curve, msg_p3.c2_prime(), ctx);
+        C3 = EC_POINT_deserialize(curve, msg_p3.c3(), ctx);
+        C3_ = EC_POINT_deserialize(curve, msg_p3.c3_prime(), ctx);
+        kq_hat = BN_deserialize(msg_p3.kq_hat());
+        Q_ = EC_POINT_deserialize(curve, msg_p3.q_prime(), ctx);
+        A_ = EC_POINT_deserialize(curve, msg_p3.a_prime(), ctx);
+    }
+
     // 释放内存
     ~Message_P3()
     {
@@ -685,7 +772,6 @@ public:
 class Message_A4
 {
 public:
-    EC_POINT *Sum_D = nullptr;
     BIGNUM *Sum = nullptr;
     EC_POINT *GK = nullptr;
     EC_POINT *GK_ = nullptr;
@@ -697,26 +783,31 @@ public:
     // 使用COPY深拷贝构造函数
     Message_A4(EC_GROUP *curve, Message_A4 *message)
     {
-        Sum_D = EC_POINT_new(curve);
         Sum = BN_dup(message->Sum);
         GK = EC_POINT_new(curve);
         GK_ = EC_POINT_new(curve);
         pkA__ = EC_POINT_new(curve);
         skA_hat_ = BN_dup(message->skA_hat_);
-        EC_POINT_copy(Sum_D, message->Sum_D);
         EC_POINT_copy(GK, message->GK);
         EC_POINT_copy(GK_, message->GK_);
         EC_POINT_copy(pkA__, message->pkA__);
     }
 
+    // 从string反序列化
+    Message_A4(EC_GROUP *curve, std::string message, BN_CTX *ctx)
+    {
+        Messages::Msg_A4 msg_a4;
+        msg_a4.ParseFromString(message);
+        Sum = BN_deserialize(msg_a4.sum());
+        GK = EC_POINT_deserialize(curve, msg_a4.gk(), ctx);
+        GK_ = EC_POINT_deserialize(curve, msg_a4.gk_prime(), ctx);
+        pkA__ = EC_POINT_deserialize(curve, msg_a4.pka_prime_prime(), ctx);
+        skA_hat_ = BN_deserialize(msg_a4.ska_hat_prime());
+    }
+
     // 释放内存
     ~Message_A4()
     {
-        if (Sum_D != nullptr)
-        {
-            EC_POINT_free(Sum_D);
-            Sum_D = nullptr;
-        }
         if (Sum != nullptr)
         {
             BN_free(Sum);
@@ -749,10 +840,6 @@ public:
     {
         BN_CTX_start(ctx);
         size_t size = 0;
-        if (Sum_D != nullptr)
-        {
-            size += EC_POINT_point2oct(curve, Sum_D, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        }
         if (Sum != nullptr)
         {
             size += BN_bn2mpi(Sum, NULL);
