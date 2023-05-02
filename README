@@ -1,0 +1,9 @@
+## 依赖
+- build-essential
+- make
+- cmake
+- libssl-dev
+- protobuf-compiler 
+- libprotobuf-dev
+- libomp-dev
+- libpthread-stubs0-dev
