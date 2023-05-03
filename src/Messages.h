@@ -865,6 +865,209 @@ public:
     }
 };
 
+class Message_P3_
+{
+public:
+    int user_count_advertiser;
+    int user_count_platform;
+    EC_POINT **J = nullptr;
+    EC_POINT **L = nullptr;
+    BIGNUM *k2_hat = nullptr;
+    EC_POINT *C2 = nullptr;
+    EC_POINT *C2_ = nullptr;
+    EC_POINT *C3 = nullptr;
+    EC_POINT *C3_ = nullptr;
+    BIGNUM *kq_hat = nullptr;
+    EC_POINT *Q_ = nullptr;
+    EC_POINT *A_ = nullptr;
+
+    Message_P3_() {}
+
+    // 使用COPY深拷贝构造函数
+    Message_P3_(EC_GROUP *curve, Message_P3_ *message)
+    {
+        user_count_advertiser = message->user_count_advertiser;
+        user_count_platform = message->user_count_platform;
+        J = new EC_POINT *[user_count_platform];
+        L = new EC_POINT *[user_count_advertiser];
+        for (int j = 0; j < user_count_platform; j++)
+        {
+            J[j] = EC_POINT_new(curve);
+            EC_POINT_copy(J[j], message->J[j]);
+        }
+        for (int i = 0; i < user_count_advertiser; i++)
+        {
+            L[i] = EC_POINT_new(curve);
+            EC_POINT_copy(L[i], message->L[i]);
+        }
+        k2_hat = BN_dup(message->k2_hat);
+        C2 = EC_POINT_new(curve);
+        C2_ = EC_POINT_new(curve);
+        C3 = EC_POINT_new(curve);
+        C3_ = EC_POINT_new(curve);
+        kq_hat = BN_dup(message->kq_hat);
+        Q_ = EC_POINT_new(curve);
+        A_ = EC_POINT_new(curve);
+        EC_POINT_copy(C2, message->C2);
+        EC_POINT_copy(C2_, message->C2_);
+        EC_POINT_copy(C3, message->C3);
+        EC_POINT_copy(C3_, message->C3_);
+        EC_POINT_copy(Q_, message->Q_);
+        EC_POINT_copy(A_, message->A_);
+    }
+
+    // 从string反序列化
+    Message_P3_(EC_GROUP *curve, std::string message, int user_count_advertiser, int user_count_platform, BN_CTX *ctx)
+    {
+        this->user_count_advertiser = user_count_advertiser;
+        this->user_count_platform = user_count_platform;
+        Messages::Msg_P3 msg_p3;
+        msg_p3.ParseFromString(message);
+        J = new EC_POINT *[user_count_platform];
+        L = new EC_POINT *[user_count_advertiser];
+        for (int j = 0; j < user_count_platform; j++)
+        {
+            J[j] = EC_POINT_deserialize(curve, msg_p3.j(j), ctx);
+        }
+        for (int i = 0; i < user_count_advertiser; i++)
+        {
+            L[i] = EC_POINT_deserialize(curve, msg_p3.l(i), ctx);
+        }
+        k2_hat = BN_deserialize(msg_p3.k2_hat());
+        C2 = EC_POINT_deserialize(curve, msg_p3.c2(), ctx);
+        C2_ = EC_POINT_deserialize(curve, msg_p3.c2_prime(), ctx);
+        C3 = EC_POINT_deserialize(curve, msg_p3.c3(), ctx);
+        C3_ = EC_POINT_deserialize(curve, msg_p3.c3_prime(), ctx);
+        kq_hat = BN_deserialize(msg_p3.kq_hat());
+        Q_ = EC_POINT_deserialize(curve, msg_p3.q_prime(), ctx);
+        A_ = EC_POINT_deserialize(curve, msg_p3.a_prime(), ctx);
+    }
+
+    // 释放内存
+    ~Message_P3_()
+    {
+        if (J != nullptr)
+        {
+            for (int j = 0; j < user_count_platform; j++)
+            {
+                if (J[j] != nullptr)
+                {
+                    EC_POINT_free(J[j]);
+                    J[j] = nullptr;
+                }
+            }
+            delete[] J;
+            J = nullptr;
+        }
+        if (L != nullptr)
+        {
+            for (int i = 0; i < user_count_advertiser; i++)
+            {
+                if (L[i] != nullptr)
+                {
+                    EC_POINT_free(L[i]);
+                    L[i] = nullptr;
+                }
+            }
+            delete[] L;
+            L = nullptr;
+        }
+        if (k2_hat != nullptr)
+        {
+            BN_free(k2_hat);
+            k2_hat = nullptr;
+        }
+        if (C2 != nullptr)
+        {
+            EC_POINT_free(C2);
+            C2 = nullptr;
+        }
+        if (C2_ != nullptr)
+        {
+            EC_POINT_free(C2_);
+            C2_ = nullptr;
+        }
+        if (C3 != nullptr)
+        {
+            EC_POINT_free(C3);
+            C3 = nullptr;
+        }
+        if (C3_ != nullptr)
+        {
+            EC_POINT_free(C3_);
+            C3_ = nullptr;
+        }
+        if (kq_hat != nullptr)
+        {
+            BN_free(kq_hat);
+            kq_hat = nullptr;
+        }
+        if (Q_ != nullptr)
+        {
+            EC_POINT_free(Q_);
+            Q_ = nullptr;
+        }
+        if (A_ != nullptr)
+        {
+            EC_POINT_free(A_);
+            A_ = nullptr;
+        }
+    }
+
+    // 获取字节数
+    size_t get_size(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        size_t size = 0;
+        for (int j = 0; j < user_count_platform; j++)
+        {
+            size += EC_POINT_point2oct(curve, J[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        }
+        for (int i = 0; i < user_count_advertiser; i++)
+        {
+            size += EC_POINT_point2oct(curve, L[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        }
+        size += BN_bn2mpi(k2_hat, NULL);
+        size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C3, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C3_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += BN_bn2mpi(kq_hat, NULL);
+        size += EC_POINT_point2oct(curve, Q_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, A_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        BN_CTX_end(ctx);
+        return size;
+    }
+
+    // 序列化
+    std::string serialize(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        std::string output;
+        Messages::Msg_P3 msg_p3;
+        for (int j = 0; j < user_count_platform; j++)
+        {
+            msg_p3.add_j(EC_POINT_serialize(curve, J[j], ctx));
+        }
+        for (int i = 0; i < user_count_advertiser; i++)
+        {
+            msg_p3.add_l(EC_POINT_serialize(curve, L[i], ctx));
+        }
+        msg_p3.set_k2_hat(BN_serialize(k2_hat));
+        msg_p3.set_c2(EC_POINT_serialize(curve, C2, ctx));
+        msg_p3.set_c2_prime(EC_POINT_serialize(curve, C2_, ctx));
+        msg_p3.set_c3(EC_POINT_serialize(curve, C3, ctx));
+        msg_p3.set_c3_prime(EC_POINT_serialize(curve, C3_, ctx));
+        msg_p3.set_kq_hat(BN_serialize(kq_hat));
+        msg_p3.set_q_prime(EC_POINT_serialize(curve, Q_, ctx));
+        msg_p3.set_a_prime(EC_POINT_serialize(curve, A_, ctx));
+        msg_p3.SerializeToString(&output);
+        BN_CTX_end(ctx);
+        return output;
+    }
+};
+
+
 class Message_A4
 {
 public:
@@ -974,3 +1177,114 @@ public:
         return output;
     }
 };
+
+class Message_A4_
+{
+public:
+    BIGNUM *Sum = nullptr;
+    EC_POINT *GK = nullptr;
+    EC_POINT *GK_ = nullptr;
+    EC_POINT *pkA__ = nullptr;
+    BIGNUM *skA_hat_ = nullptr;
+
+    Message_A4_() {}
+
+    // 使用COPY深拷贝构造函数
+    Message_A4_(EC_GROUP *curve, Message_A4_ *message)
+    {
+        Sum = BN_dup(message->Sum);
+        GK = EC_POINT_new(curve);
+        GK_ = EC_POINT_new(curve);
+        pkA__ = EC_POINT_new(curve);
+        skA_hat_ = BN_dup(message->skA_hat_);
+        EC_POINT_copy(GK, message->GK);
+        EC_POINT_copy(GK_, message->GK_);
+        EC_POINT_copy(pkA__, message->pkA__);
+    }
+
+    // 从string反序列化
+    Message_A4_(EC_GROUP *curve, std::string message, BN_CTX *ctx)
+    {
+        Messages::Msg_A4 msg_a4;
+        msg_a4.ParseFromString(message);
+        Sum = BN_deserialize(msg_a4.sum());
+        GK = EC_POINT_deserialize(curve, msg_a4.gk(), ctx);
+        GK_ = EC_POINT_deserialize(curve, msg_a4.gk_prime(), ctx);
+        pkA__ = EC_POINT_deserialize(curve, msg_a4.pka_prime_prime(), ctx);
+        skA_hat_ = BN_deserialize(msg_a4.ska_hat_prime());
+    }
+
+    // 释放内存
+    ~Message_A4_()
+    {
+        if (Sum != nullptr)
+        {
+            BN_free(Sum);
+            Sum = nullptr;
+        }
+        if (GK != nullptr)
+        {
+            EC_POINT_free(GK);
+            GK = nullptr;
+        }
+        if (GK_ != nullptr)
+        {
+            EC_POINT_free(GK_);
+            GK_ = nullptr;
+        }
+        if (pkA__ != nullptr)
+        {
+            EC_POINT_free(pkA__);
+            pkA__ = nullptr;
+        }
+        if (skA_hat_ != nullptr)
+        {
+            BN_free(skA_hat_);
+            skA_hat_ = nullptr;
+        }
+    }
+
+    // 获取字节数
+    size_t get_size(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        size_t size = 0;
+        if (Sum != nullptr)
+        {
+            size += BN_bn2mpi(Sum, NULL);
+        }
+        size += EC_POINT_point2oct(curve, GK, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GK_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, pkA__, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += BN_bn2mpi(skA_hat_, NULL);
+        BN_CTX_end(ctx);
+        return size;
+    }
+
+    // 序列化
+    std::string serialize(EC_GROUP *curve, BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        std::string output;
+        Messages::Msg_A4 msg_a4;
+        if (Sum != nullptr)
+        {
+            msg_a4.set_sum(BN_serialize(Sum));
+        }
+        else
+        {
+            BIGNUM *zero = BN_new();
+            BN_zero(zero);
+            msg_a4.set_sum(BN_serialize(zero));
+            BN_free(zero);
+        }
+        msg_a4.set_gk(EC_POINT_serialize(curve, GK, ctx));
+        msg_a4.set_gk_prime(EC_POINT_serialize(curve, GK_, ctx));
+        msg_a4.set_pka_prime_prime(EC_POINT_serialize(curve, pkA__, ctx));
+        msg_a4.set_ska_hat_prime(BN_serialize(skA_hat_));
+        msg_a4.SerializeToString(&output);
+        BN_CTX_end(ctx);
+        return output;
+    }
+};
+

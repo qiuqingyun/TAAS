@@ -107,8 +107,42 @@ message Msg_P3{
     bytes Q_prime = 9;
     bytes A_prime = 10;
 }
+message Msg_P3_{
+    // EC_POINT **J = nullptr;
+    // EC_POINT **L = nullptr;
+    // BIGNUM *k2_hat = nullptr;
+    // EC_POINT *C2 = nullptr;
+    // EC_POINT *C2_ = nullptr;
+    // EC_POINT *C3 = nullptr;
+    // EC_POINT *C3_ = nullptr;
+    // BIGNUM *kq_hat = nullptr;
+    // EC_POINT *Q_ = nullptr;
+    // EC_POINT *A_ = nullptr;
+    repeated bytes J = 1;
+    repeated bytes L = 2;
+    bytes k2_hat = 3;
+    bytes C2 = 4;
+    bytes C2_prime = 5;
+    bytes C3 = 6;
+    bytes C3_prime = 7;
+    bytes kq_hat = 8;
+    bytes Q_prime = 9;
+    bytes A_prime = 10;
+}
 
 message Msg_A4{
+    // BIGNUM *Sum = nullptr;
+    // EC_POINT *GK = nullptr;
+    // EC_POINT *GK_ = nullptr;
+    // EC_POINT *pkA__ = nullptr;
+    // BIGNUM *skA_hat_ = nullptr;
+    bytes Sum = 1;
+    bytes GK = 2;
+    bytes GK_prime = 3;
+    bytes pkA_prime_prime = 4;
+    bytes skA_hat_prime = 5;
+}
+message Msg_A4_{
     // BIGNUM *Sum = nullptr;
     // EC_POINT *GK = nullptr;
     // EC_POINT *GK_ = nullptr;

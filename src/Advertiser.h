@@ -15,7 +15,7 @@ class Advertiser
     Proof *proof = nullptr;
     Message_A2 *message_a2 = nullptr;
     Message_A4 *message_a4 = nullptr;
-
+    Message_A4_ *message_a4_ = nullptr;
     std::unordered_map<std::string, std::string> *U_Evidence = nullptr;
 
     // 共享变量
@@ -26,7 +26,7 @@ class Advertiser
 
     Message_P1 *message_p1 = nullptr;
     Message_P3 *message_p3 = nullptr;
-
+    Message_P3_ *message_p3_ = nullptr;
     // debug
     EC_POINT *Sum_d = nullptr;
 
@@ -735,6 +735,157 @@ public:
         BN_CTX_end(ctx);
         return 0;
     }
+    int round_A4_(BN_CTX *ctx)
+    {
+        BN_CTX_start(ctx);
+        message_a4 = new Message_A4();
+        // 验证上一轮的计算
+        {
+            // 计算 tq=H(W1||C2')
+            BIGNUM *tq = BN_hash(
+                w1->to_string(ctx),
+                EC_POINT_to_string(w1->get_curve(), message_p3->C2_, ctx));
+            // 计算 ta=H(W1||C3')
+            BIGNUM *ta = BN_hash(
+                w1->to_string(ctx),
+                EC_POINT_to_string(w1->get_curve(), message_p3->C3_, ctx));
+            // 验证 k2_hat*Q' = tq*C2 + C2'
+            EC_POINT *left = EC_POINT_new(w1->get_curve());
+            EC_POINT *right = EC_POINT_new(w1->get_curve());
+            EC_POINT_mul(w1->get_curve(), left, NULL, message_p3->Q_, message_p3->k2_hat, ctx);
+            EC_POINT_mul(w1->get_curve(), right, NULL, message_p3->C2, tq, ctx);
+            EC_POINT_add(w1->get_curve(), right, right, message_p3->C2_, ctx);
+            if (EC_POINT_cmp(w1->get_curve(), left, right, ctx) != 0)
+            {
+                std::cout << "failed: A4" << std::endl;
+                std::cout << "A4: k2_hat*Q' != tq*C2 + C2'" << std::endl;
+                return 1;
+            }
+            // 验证 kq_hat*A' = ta*C3 + C3'
+            EC_POINT_mul(w1->get_curve(), left, NULL, message_p3->A_, message_p3->kq_hat, ctx);
+            EC_POINT_mul(w1->get_curve(), right, NULL, message_p3->C3, ta, ctx);
+            EC_POINT_add(w1->get_curve(), right, right, message_p3->C3_, ctx);
+            if (EC_POINT_cmp(w1->get_curve(), left, right, ctx) != 0)
+            {
+                std::cout << "failed: A4" << std::endl;
+                std::cout << "A4: kq_hat*A' != ta*C3 + C3'" << std::endl;
+                return 1;
+            }
+            // 释放内存
+            BN_free(tq);
+            BN_free(ta);
+            EC_POINT_free(left);
+            EC_POINT_free(right);
+        }
+        // 将向量J的值存入向量X中
+        std::string *X = new std::string[user_count_platform];
+// 并行化
+#pragma omp parallel for
+        for (int j = 0; j < user_count_platform; ++j)
+        {
+            BN_CTX *temp_ctx = BN_CTX_new();
+            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message_p3->J[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            X[j] = temp_J;
+            // 释放内存
+            OPENSSL_free(temp_J);
+            BN_CTX_free(temp_ctx);
+        }
+        // 使用unordered_map存储Li与Ai的关系，并将其分配在堆内存中
+        std::unordered_map<std::string, std::string> *L_A = new std::unordered_map<std::string, std::string>();
+        // 将向量L的值存入向量Y中
+        std::string *Y = new std::string[user_count_advertiser];
+// 并行化
+#pragma omp parallel for
+        for (int i = 0; i < user_count_advertiser; ++i)
+        {
+            BN_CTX *temp_ctx = BN_CTX_new();
+            char *temp_L = EC_POINT_point2hex(w1->get_curve(), message_p3->L[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            char *temp_A = EC_POINT_point2hex(w1->get_curve(), A[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            Y[i] = temp_L;
+// 线程安全
+#pragma omp critical
+            L_A->insert(std::make_pair(
+                temp_L,
+                temp_A));
+            // 释放内存
+            OPENSSL_free(temp_L);
+            OPENSSL_free(temp_A);
+            BN_CTX_free(temp_ctx);
+        }
+        // 对向量X进行排序
+        std::sort(X, X + user_count_platform);
+        // 对向量Y进行排序
+        std::sort(Y, Y + user_count_advertiser);
+        // 定义交集向量
+        std::vector<std::string> *intersection = new std::vector<std::string>();
+        // 使用set_intersection计算向量J与向量X的交集，当向量J中的元素与向量X中元素的first相同时，将向量X的元素存入交集向量intersection中
+        std::set_intersection(
+            X, X + user_count_platform,
+            Y, Y + user_count_advertiser,
+            std::back_inserter(*intersection));
+
+        // 同态累加交集向量中的 ElGamal_ciphertext 得到 Sum_E
+        ElGamal_ciphertext *Sum_E = nullptr;
+        if (intersection->size() > 0)
+        {
+            // 将Sum_E赋值为交集向量中的第一个元素在A_V中的value
+            Sum_E = new ElGamal_ciphertext(w1->get_curve(), A_V->at(L_A->at(intersection->at(0))), ctx);
+            // 循环累加交集向量中的 ElGamal_ciphertext
+            for (size_t i = 1; i < intersection->size(); ++i)
+            {
+                ElGamal_ciphertext *temp = new ElGamal_ciphertext(w1->get_curve(), A_V->at(L_A->at(intersection->at(i))), ctx);
+                ElGamal_add(w1->get_curve(), Sum_E, Sum_E, temp, ctx);
+                delete temp;
+            }
+        }
+        else
+        {
+            // 生成变量0
+            BIGNUM *zero = BN_new();
+            BN_zero(zero);
+            Sum_E = ElGamal_encrypt(w1, zero, ctx);
+            BN_free(zero);
+        }
+        // 解密Sum_E
+        EC_POINT *Sum_D = ElGamal_decrypt(w1, skA, Sum_E, ctx);
+        // 测试Sum_D是否等于Sum_d
+        if (EC_POINT_cmp(w1->get_curve(), Sum_D, Sum_d, ctx) != 0)
+        {
+            std::cout << "failed: A4" << std::endl;
+            std::cout << "Sum_D != Sum_d" << std::endl;
+        }
+        // 选择随机数 skA''
+        BIGNUM *skA__ = BN_rand(256);
+        // 计算 GK = skA*Ga
+        message_a4->GK = EC_POINT_new(w1->get_curve());
+        EC_POINT_mul(w1->get_curve(), message_a4->GK, NULL, w1->get_Ga(), skA, ctx);
+        // 计算 GK' = skA''*Ga
+        message_a4->GK_ = EC_POINT_new(w1->get_curve());
+        EC_POINT_mul(w1->get_curve(), message_a4->GK_, NULL, w1->get_Ga(), skA__, ctx);
+        // 计算 pkA'' = skA''*Ha
+        message_a4->pkA__ = EC_POINT_new(w1->get_curve());
+        EC_POINT_mul(w1->get_curve(), message_a4->pkA__, NULL, w1->get_Ha(), skA__, ctx);
+        // 计算哈希值 tb = H(W1||GK'||pkA'')
+        BIGNUM *tb = BN_hash(
+            w1->to_string(ctx),
+            EC_POINT_to_string(w1->get_curve(), message_a4->GK_, ctx),
+            EC_POINT_to_string(w1->get_curve(), message_a4->pkA__, ctx));
+        // 计算 skA_hat = tb*skA + skA'
+        message_a4->skA_hat_ = BN_new();
+        BN_mod_mul(message_a4->skA_hat_, tb, skA, w1->get_order(), ctx);
+        BN_mod_add(message_a4->skA_hat_, message_a4->skA_hat_, skA__, w1->get_order(), ctx);
+        // 释放内存L_A,X,Y,intersection,Sum_E,skA__,tb
+        delete L_A;
+        delete[] X;
+        delete[] Y;
+        delete intersection;
+        delete Sum_E;
+        EC_POINT_free(Sum_D);
+        BN_free(skA__);
+        BN_free(tb);
+        BN_CTX_end(ctx);
+        return 0;
+    }
 
     // set U_Evidence
     void set_U_Evidence(std::unordered_map<std::string, std::string> *U_Evidence)
@@ -772,10 +923,15 @@ public:
         message_p3 = new Message_P3(w1->get_curve(), message, user_count_advertiser, user_count_platform, ctx);
     }
 
+    void set_message_p3_(std::string message, BN_CTX *ctx)
+    {
+        message_p3_ = new Message_P3_(w1->get_curve(), message, user_count_advertiser, user_count_platform, ctx);
+    }
     std::string get_proof(BN_CTX *ctx) { return proof->serialize(w1->get_curve(), ctx); }
     std::string get_message_a2(BN_CTX *ctx)
     {
         return message_a2->serialize(w1->get_curve(), ctx);
     }
     std::string get_message_a4(BN_CTX *ctx) { return message_a4->serialize(w1->get_curve(), ctx); }
+    std::string get_message_a4_(BN_CTX *ctx) { return message_a4_->serialize(w1->get_curve(), ctx); }
 };
