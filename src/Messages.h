@@ -875,11 +875,26 @@ public:
     BIGNUM *k2_hat = nullptr;
     EC_POINT *C2 = nullptr;
     EC_POINT *C2_ = nullptr;
-    EC_POINT *C3 = nullptr;
-    EC_POINT *C3_ = nullptr;
-    BIGNUM *kq_hat = nullptr;
+    EC_POINT **Ct1_ = nullptr;
+    EC_POINT **Ct2_ = nullptr;
+    BIGNUM **x_hat_ = nullptr;
+    BIGNUM **y_hat_ = nullptr;
+    ElGamal_ciphertext **Ct = nullptr;
+    ElGamal_ciphertext **Ct_ = nullptr;
+    EC_POINT **CA_ = nullptr;
+    EC_POINT **CB_ = nullptr;
+    EC_POINT **CD__ = nullptr;
+    BIGNUM *E_ = nullptr;
+    ElGamal_ciphertext *F_ = nullptr;
+    ElGamal_ciphertext *F__ = nullptr;
+    EC_POINT *GSP = nullptr;
+    EC_POINT *GSP_ = nullptr;
+    EC_POINT *pk_p_ = nullptr;
+    EC_POINT *pk_p_ = nullptr;
+
     EC_POINT *Q_ = nullptr;
-    EC_POINT *A_ = nullptr;
+    //BIGNUM *kq_hat = nullptr;
+    ElGamal_ciphertext *V_ = nullptr;
 
     Message_P3_() {}
 
@@ -903,17 +918,13 @@ public:
         k2_hat = BN_dup(message->k2_hat);
         C2 = EC_POINT_new(curve);
         C2_ = EC_POINT_new(curve);
-        C3 = EC_POINT_new(curve);
-        C3_ = EC_POINT_new(curve);
-        kq_hat = BN_dup(message->kq_hat);
+
         Q_ = EC_POINT_new(curve);
-        A_ = EC_POINT_new(curve);
+
         EC_POINT_copy(C2, message->C2);
         EC_POINT_copy(C2_, message->C2_);
-        EC_POINT_copy(C3, message->C3);
-        EC_POINT_copy(C3_, message->C3_);
+
         EC_POINT_copy(Q_, message->Q_);
-        EC_POINT_copy(A_, message->A_);
     }
 
     // 从string反序列化
@@ -936,11 +947,8 @@ public:
         k2_hat = BN_deserialize(msg_p3.k2_hat());
         C2 = EC_POINT_deserialize(curve, msg_p3.c2(), ctx);
         C2_ = EC_POINT_deserialize(curve, msg_p3.c2_prime(), ctx);
-        C3 = EC_POINT_deserialize(curve, msg_p3.c3(), ctx);
-        C3_ = EC_POINT_deserialize(curve, msg_p3.c3_prime(), ctx);
-        kq_hat = BN_deserialize(msg_p3.kq_hat());
+
         Q_ = EC_POINT_deserialize(curve, msg_p3.q_prime(), ctx);
-        A_ = EC_POINT_deserialize(curve, msg_p3.a_prime(), ctx);
     }
 
     // 释放内存
@@ -987,30 +995,10 @@ public:
             EC_POINT_free(C2_);
             C2_ = nullptr;
         }
-        if (C3 != nullptr)
-        {
-            EC_POINT_free(C3);
-            C3 = nullptr;
-        }
-        if (C3_ != nullptr)
-        {
-            EC_POINT_free(C3_);
-            C3_ = nullptr;
-        }
-        if (kq_hat != nullptr)
-        {
-            BN_free(kq_hat);
-            kq_hat = nullptr;
-        }
         if (Q_ != nullptr)
         {
             EC_POINT_free(Q_);
             Q_ = nullptr;
-        }
-        if (A_ != nullptr)
-        {
-            EC_POINT_free(A_);
-            A_ = nullptr;
         }
     }
 
@@ -1030,11 +1018,7 @@ public:
         size += BN_bn2mpi(k2_hat, NULL);
         size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
         size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C3, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C3_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += BN_bn2mpi(kq_hat, NULL);
         size += EC_POINT_point2oct(curve, Q_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, A_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
         BN_CTX_end(ctx);
         return size;
     }
@@ -1044,7 +1028,7 @@ public:
     {
         BN_CTX_start(ctx);
         std::string output;
-        Messages::Msg_P3 msg_p3;
+        Messages::Msg_P3_ msg_p3;
         for (int j = 0; j < user_count_platform; j++)
         {
             msg_p3.add_j(EC_POINT_serialize(curve, J[j], ctx));
@@ -1056,11 +1040,7 @@ public:
         msg_p3.set_k2_hat(BN_serialize(k2_hat));
         msg_p3.set_c2(EC_POINT_serialize(curve, C2, ctx));
         msg_p3.set_c2_prime(EC_POINT_serialize(curve, C2_, ctx));
-        msg_p3.set_c3(EC_POINT_serialize(curve, C3, ctx));
-        msg_p3.set_c3_prime(EC_POINT_serialize(curve, C3_, ctx));
-        msg_p3.set_kq_hat(BN_serialize(kq_hat));
         msg_p3.set_q_prime(EC_POINT_serialize(curve, Q_, ctx));
-        msg_p3.set_a_prime(EC_POINT_serialize(curve, A_, ctx));
         msg_p3.SerializeToString(&output);
         BN_CTX_end(ctx);
         return output;
@@ -1205,7 +1185,7 @@ public:
     // 从string反序列化
     Message_A4_(EC_GROUP *curve, std::string message, BN_CTX *ctx)
     {
-        Messages::Msg_A4 msg_a4;
+        Messages::Msg_A4_ msg_a4;
         msg_a4.ParseFromString(message);
         Sum = BN_deserialize(msg_a4.sum());
         GK = EC_POINT_deserialize(curve, msg_a4.gk(), ctx);
@@ -1266,7 +1246,7 @@ public:
     {
         BN_CTX_start(ctx);
         std::string output;
-        Messages::Msg_A4 msg_a4;
+        Messages::Msg_A4_ msg_a4;
         if (Sum != nullptr)
         {
             msg_a4.set_sum(BN_serialize(Sum));

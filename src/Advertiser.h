@@ -738,42 +738,29 @@ public:
     int round_A4_(BN_CTX *ctx)
     {
         BN_CTX_start(ctx);
-        message_a4 = new Message_A4();
+        message_a4_ = new Message_A4_();
         // 验证上一轮的计算
         {
             // 计算 tq=H(W1||C2')
             BIGNUM *tq = BN_hash(
                 w1->to_string(ctx),
-                EC_POINT_to_string(w1->get_curve(), message_p3->C2_, ctx));
-            // 计算 ta=H(W1||C3')
-            BIGNUM *ta = BN_hash(
-                w1->to_string(ctx),
-                EC_POINT_to_string(w1->get_curve(), message_p3->C3_, ctx));
+                EC_POINT_to_string(w1->get_curve(), message_p3_->C2_, ctx));
+           
             // 验证 k2_hat*Q' = tq*C2 + C2'
             EC_POINT *left = EC_POINT_new(w1->get_curve());
             EC_POINT *right = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), left, NULL, message_p3->Q_, message_p3->k2_hat, ctx);
-            EC_POINT_mul(w1->get_curve(), right, NULL, message_p3->C2, tq, ctx);
-            EC_POINT_add(w1->get_curve(), right, right, message_p3->C2_, ctx);
+            EC_POINT_mul(w1->get_curve(), left, NULL, message_p3_->Q_, message_p3_->k2_hat, ctx);
+            EC_POINT_mul(w1->get_curve(), right, NULL, message_p3_->C2, tq, ctx);
+            EC_POINT_add(w1->get_curve(), right, right, message_p3_->C2_, ctx);
             if (EC_POINT_cmp(w1->get_curve(), left, right, ctx) != 0)
             {
                 std::cout << "failed: A4" << std::endl;
                 std::cout << "A4: k2_hat*Q' != tq*C2 + C2'" << std::endl;
                 return 1;
             }
-            // 验证 kq_hat*A' = ta*C3 + C3'
-            EC_POINT_mul(w1->get_curve(), left, NULL, message_p3->A_, message_p3->kq_hat, ctx);
-            EC_POINT_mul(w1->get_curve(), right, NULL, message_p3->C3, ta, ctx);
-            EC_POINT_add(w1->get_curve(), right, right, message_p3->C3_, ctx);
-            if (EC_POINT_cmp(w1->get_curve(), left, right, ctx) != 0)
-            {
-                std::cout << "failed: A4" << std::endl;
-                std::cout << "A4: kq_hat*A' != ta*C3 + C3'" << std::endl;
-                return 1;
-            }
+
             // 释放内存
             BN_free(tq);
-            BN_free(ta);
             EC_POINT_free(left);
             EC_POINT_free(right);
         }
@@ -784,7 +771,7 @@ public:
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
-            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message_p3->J[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message_p3_->J[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
             X[j] = temp_J;
             // 释放内存
             OPENSSL_free(temp_J);
@@ -799,7 +786,7 @@ public:
         for (int i = 0; i < user_count_advertiser; ++i)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
-            char *temp_L = EC_POINT_point2hex(w1->get_curve(), message_p3->L[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            char *temp_L = EC_POINT_point2hex(w1->get_curve(), message_p3_->L[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
             char *temp_A = EC_POINT_point2hex(w1->get_curve(), A[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
             Y[i] = temp_L;
 // 线程安全
@@ -830,6 +817,8 @@ public:
         {
             // 将Sum_E赋值为交集向量中的第一个元素在A_V中的value
             Sum_E = new ElGamal_ciphertext(w1->get_curve(), A_V->at(L_A->at(intersection->at(0))), ctx);
+
+    
             // 循环累加交集向量中的 ElGamal_ciphertext
             for (size_t i = 1; i < intersection->size(); ++i)
             {
@@ -857,23 +846,23 @@ public:
         // 选择随机数 skA''
         BIGNUM *skA__ = BN_rand(256);
         // 计算 GK = skA*Ga
-        message_a4->GK = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), message_a4->GK, NULL, w1->get_Ga(), skA, ctx);
+        message_a4_->GK = EC_POINT_new(w1->get_curve());
+        EC_POINT_mul(w1->get_curve(), message_a4_->GK, NULL, w1->get_Ga(), skA, ctx);
         // 计算 GK' = skA''*Ga
-        message_a4->GK_ = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), message_a4->GK_, NULL, w1->get_Ga(), skA__, ctx);
+        message_a4_->GK_ = EC_POINT_new(w1->get_curve());
+        EC_POINT_mul(w1->get_curve(), message_a4_->GK_, NULL, w1->get_Ga(), skA__, ctx);
         // 计算 pkA'' = skA''*Ha
-        message_a4->pkA__ = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), message_a4->pkA__, NULL, w1->get_Ha(), skA__, ctx);
+        message_a4_->pkA__ = EC_POINT_new(w1->get_curve());
+        EC_POINT_mul(w1->get_curve(), message_a4_->pkA__, NULL, w1->get_Ha(), skA__, ctx);
         // 计算哈希值 tb = H(W1||GK'||pkA'')
         BIGNUM *tb = BN_hash(
             w1->to_string(ctx),
-            EC_POINT_to_string(w1->get_curve(), message_a4->GK_, ctx),
-            EC_POINT_to_string(w1->get_curve(), message_a4->pkA__, ctx));
+            EC_POINT_to_string(w1->get_curve(), message_a4_->GK_, ctx),
+            EC_POINT_to_string(w1->get_curve(), message_a4_->pkA__, ctx));
         // 计算 skA_hat = tb*skA + skA'
-        message_a4->skA_hat_ = BN_new();
-        BN_mod_mul(message_a4->skA_hat_, tb, skA, w1->get_order(), ctx);
-        BN_mod_add(message_a4->skA_hat_, message_a4->skA_hat_, skA__, w1->get_order(), ctx);
+        message_a4_->skA_hat_ = BN_new();
+        BN_mod_mul(message_a4_->skA_hat_, tb, skA, w1->get_order(), ctx);
+        BN_mod_add(message_a4_->skA_hat_, message_a4_->skA_hat_, skA__, w1->get_order(), ctx);
         // 释放内存L_A,X,Y,intersection,Sum_E,skA__,tb
         delete L_A;
         delete[] X;
