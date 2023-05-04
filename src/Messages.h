@@ -873,6 +873,7 @@ public:
     EC_POINT **J = nullptr;
     EC_POINT **L = nullptr;
     BIGNUM *k2_hat = nullptr;
+    BIGNUM *sk_p_hat = nullptr;
     EC_POINT *C2 = nullptr;
     EC_POINT *C2_ = nullptr;
     EC_POINT **Ct1_ = nullptr;
@@ -890,11 +891,10 @@ public:
     EC_POINT *GSP = nullptr;
     EC_POINT *GSP_ = nullptr;
     EC_POINT *pk_p_ = nullptr;
-    EC_POINT *pk_p_ = nullptr;
+    EC_POINT *pk_p = nullptr;
 
     EC_POINT *Q_ = nullptr;
-    //BIGNUM *kq_hat = nullptr;
-    ElGamal_ciphertext *V_ = nullptr;
+    ElGamal_ciphertext **V_ = nullptr;
 
     Message_P3_() {}
 
