@@ -393,6 +393,8 @@ int test_verify_(int user_count_advertiser)
     size_t proof_size_batch = proof_batch.size();
     // 广告平台
     Platform platform(&w1, user_count_advertiser, user_count_platform, user_id_platform);
+    platform.set_user_datas(user_datas_advertiser);
+    platform.set_U_Evidence(U_Evidence);
     // 验证广告主的证明
     auto start_platform = std::chrono::high_resolution_clock::now(); // 记录开始时间
     platform.set_proof(proof_batch, ctx);

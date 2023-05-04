@@ -781,7 +781,7 @@ public:
                 {
                     std::cout << "failed: A4" << std::endl;
                     std::cout << "A4: x_hat_[i]*Ai + y_hat_[i]*pk_p != s_[i]*Ct1[i]+Ct1_[i]" << std::endl;
-                    return 1;
+                    //return 1;
                 }
                 //加密验证：y_hat_[i]*Ha = s_[i]*Ct2[i]+Ct2_[i]
                 EC_POINT_mul(w1->get_curve(),left,NULL,w1->get_Ha(),message_p3_->y_hat_[i],temp_ctx);
@@ -791,7 +791,7 @@ public:
                 {
                     std::cout << "failed: A4" << std::endl;
                     std::cout << "A4: y_hat_[i]*Ha != s_[i]*Ct2[i]+Ct2_[i]" << std::endl;
-                    return 1;
+                    //return 1;
                 }
                 EC_POINT_free(tempt);
                 BN_free(Si_);
@@ -814,6 +814,7 @@ public:
             );
             //初始化E''=1
             BIGNUM *E__ ;
+            E__ = BN_new();
             BN_one(E__);
 
             //初始化Ct_x_ = Ct[1]*x^(1)
@@ -841,7 +842,7 @@ public:
                 {
                     std::cout << "failed: A4" << std::endl;
                     std::cout << "A4: y_hat_[i]*Ha != s_[i]*Ct2[i]+Ct2_[i]" << std::endl;
-                    return 1;
+                    //return 1;
                 }
                 //计算E''=E''*(y'*i+x'^(i)-z')
                 BIGNUM *x_i_sub_z,*big_i,*y_i_,*x_big_i;

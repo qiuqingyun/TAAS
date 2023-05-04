@@ -108,26 +108,57 @@ message Msg_P3{
     bytes A_prime = 10;
 }
 message Msg_P3_{
+    // int user_count_advertiser;
+    // int user_count_platform;
     // EC_POINT **J = nullptr;
     // EC_POINT **L = nullptr;
     // BIGNUM *k2_hat = nullptr;
+    // BIGNUM *sk_p_hat = nullptr;
     // EC_POINT *C2 = nullptr;
     // EC_POINT *C2_ = nullptr;
-    // EC_POINT *C3 = nullptr;
-    // EC_POINT *C3_ = nullptr;
-    // BIGNUM *kq_hat = nullptr;
+    // EC_POINT **Ct1_ = nullptr;
+    // EC_POINT **Ct2_ = nullptr;
+    // BIGNUM **x_hat_ = nullptr;
+    // BIGNUM **y_hat_ = nullptr;
+    // ElGamal_ciphertext **Ct = nullptr;
+    // ElGamal_ciphertext **Ct_ = nullptr;
+    // EC_POINT **CA_ = nullptr;
+    // EC_POINT **CB_ = nullptr;
+    // EC_POINT **CD__ = nullptr;
+    // BIGNUM *E_ = nullptr;
+    // ElGamal_ciphertext *F_ = nullptr;
+    // ElGamal_ciphertext *F__ = nullptr;
+    // EC_POINT *GSP = nullptr;
+    // EC_POINT *GSP_ = nullptr;
+    // EC_POINT *pk_p_ = nullptr;
+    // EC_POINT *pk_p = nullptr;
     // EC_POINT *Q_ = nullptr;
-    // EC_POINT *A_ = nullptr;
+    // ElGamal_ciphertext **V_ = nullptr;
+
     repeated bytes J = 1;
     repeated bytes L = 2;
     bytes k2_hat = 3;
-    bytes C2 = 4;
-    bytes C2_prime = 5;
-    bytes C3 = 6;
-    bytes C3_prime = 7;
-    bytes kq_hat = 8;
-    bytes Q_prime = 9;
-    bytes A_prime = 10;
+    bytes sk_p_hat = 4;
+    bytes C2 = 5;
+    bytes C2_prime = 6;
+    repeated bytes Ct1_ = 7;
+    repeated bytes Ct2_ = 8;
+    repeated bytes x_hat_ = 9;
+    repeated bytes y_hat_ = 10;
+    repeated bytes Ct = 11;
+    repeated bytes Ct_prime = 12;
+    repeated bytes CA_ = 13;
+    repeated bytes CB_ = 14;
+    repeated bytes CD__ = 15;
+    bytes E_ = 16;
+    bytes F_ = 17;
+    bytes F_prime_ = 18;
+    bytes GSP = 19;
+    bytes GSP_prime = 20;
+    bytes pk_p_prime = 21;
+    bytes pk_p = 22;
+    bytes Q_prime = 23;
+    repeated bytes V_ = 24;
 }
 
 message Msg_A4{
