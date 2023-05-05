@@ -873,7 +873,7 @@ public:
             xi__ = BN_rand(256);
             yi__ = BN_rand(256);
             //计算Ct1i_和Ct2i_
-            //Ct1i_ = xi__*Ai + yi__*message_p3_->pk_p
+            //Ct1i_ = xi__*Ai + yi__*pk_p
             EC_POINT *temp = EC_POINT_new(w1->get_curve());
             message_p3_->Ct1_[i] = EC_POINT_new(w1->get_curve());
             message_p3_->Ct2_[i] = EC_POINT_new(w1->get_curve());

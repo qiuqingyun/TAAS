@@ -145,20 +145,20 @@ message Msg_P3_{
     repeated bytes Ct2_ = 8;
     repeated bytes x_hat_ = 9;
     repeated bytes y_hat_ = 10;
-    repeated bytes Ct = 11;
-    repeated bytes Ct_prime = 12;
+    repeated Msg_ElGamal_ciphertext Ct = 11;
+    repeated Msg_ElGamal_ciphertext Ct_prime = 12;
     repeated bytes CA_ = 13;
     repeated bytes CB_ = 14;
     repeated bytes CD__ = 15;
     bytes E_ = 16;
-    bytes F_ = 17;
-    bytes F_prime_ = 18;
+    Msg_ElGamal_ciphertext F_ = 17;
+    Msg_ElGamal_ciphertext F_prime_ = 18;
     bytes GSP = 19;
     bytes GSP_prime = 20;
     bytes pk_p_prime = 21;
     bytes pk_p = 22;
     bytes Q_prime = 23;
-    repeated bytes V_ = 24;
+    repeated Msg_ElGamal_ciphertext V_ = 24;
 }
 
 message Msg_A4{
