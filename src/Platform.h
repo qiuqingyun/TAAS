@@ -827,7 +827,6 @@ public:
         BIGNUM *sk_p;
         sk_p = BN_rand(256);
         message_p3_->pk_p = EC_POINT_new(w1->get_curve());
-        message_p3_->pk_p = EC_POINT_new(w1->get_curve());
         EC_POINT_mul(w1->get_curve(), message_p3_->pk_p, NULL, w1->get_Ha(), sk_p, NULL);
         
         //初始化L和Ct
@@ -849,38 +848,36 @@ public:
 //#pragma omp parallel for
         for (int i = 0; i < user_count_advertiser; ++i){
             BN_CTX* temp_ctx = BN_CTX_new();
-
             _pi[i]= i+1;
-            // 计算 Li = k3*k2*Ai
+            // 计算 Li = k3*k2*Ai =kq*Ai 
             message_p3_->L[i] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), message_p3_->L[i], NULL, message_a2->A[i], k3, temp_ctx);
-            EC_POINT_mul(w1->get_curve(), message_p3_->L[i], NULL, message_p3_->L[i], k2, temp_ctx);
+            EC_POINT_mul(w1->get_curve(), message_p3_->L[i],NULL,message_a2->A[i],kq,temp_ctx);
             //计算Ct
             message_p3_->Ct[i] = new ElGamal_ciphertext(w1->get_curve());
-            //
-            // 计算 k1*Pj
             //C1= Li+rri*Pk_P
             BIGNUM *rri;
             rri = BN_new();
             rri = BN_rand(256);
-            EC_POINT_mul(w1->get_curve(), message_p3_->Ct[i]->C1, NULL, message_p3_->pk_p, rri, temp_ctx);
-            EC_POINT_add(w1->get_curve(), message_p3_->Ct[i]->C1,message_p3_->Ct[i]->C1,message_p3_->L[i],temp_ctx);
+            EC_POINT_mul(w1->get_curve(),message_p3_->Ct[i]->C1,NULL,message_p3_->pk_p,rri,temp_ctx);
+            EC_POINT_add(w1->get_curve(),message_p3_->Ct[i]->C1,message_p3_->Ct[i]->C1,message_p3_->L[i],temp_ctx);
             //C2 = rri*Ha
-            EC_POINT_mul(w1->get_curve(), message_p3_->Ct[i]->C2, NULL, w1->get_Ha(), rri, temp_ctx);
+            EC_POINT_mul(w1->get_curve(),message_p3_->Ct[i]->C2,NULL,w1->get_Ha(),rri,temp_ctx);
             //证明上述加密等
             //选择xi__和yi__
             BIGNUM *xi__,*yi__;
+            xi__ = BN_new();
+            yi__ = BN_new();
             xi__ = BN_rand(256);
             yi__ = BN_rand(256);
             //计算Ct1i_和Ct2i_
-            //Ct1i_ = xi__*Ai + yi__*pk_p
-            EC_POINT *temp = EC_POINT_new(w1->get_curve());
+            
+            EC_POINT *temp_ec = EC_POINT_new(w1->get_curve());
             message_p3_->Ct1_[i] = EC_POINT_new(w1->get_curve());
             message_p3_->Ct2_[i] = EC_POINT_new(w1->get_curve());
-
-            EC_POINT_mul(w1->get_curve(),temp, NULL,message_a2->A[i],xi__,temp_ctx);
+            //Ct1i_ = xi__*Ai + yi__*pk_p
+            EC_POINT_mul(w1->get_curve(),temp_ec, NULL,message_a2->A[i],xi__,temp_ctx);
             EC_POINT_mul(w1->get_curve(),message_p3_->Ct1_[i], NULL,message_p3_->pk_p,yi__,temp_ctx);
-            EC_POINT_add(w1->get_curve(),message_p3_->Ct1_[i],message_p3_->Ct1_[i],temp,temp_ctx);
+            EC_POINT_add(w1->get_curve(),message_p3_->Ct1_[i],message_p3_->Ct1_[i],temp_ec,temp_ctx);
             //Ct2i = yi__*Ha
             EC_POINT_mul(w1->get_curve(),message_p3_->Ct2_[i], NULL,w1->get_Ha(),yi__,temp_ctx);
             //计算hash(w1||ct1i||ct2i)
@@ -905,10 +902,9 @@ public:
             BN_free(rri);
             BN_free(Si_);
             BN_CTX_free(temp_ctx);
-            EC_POINT_free(temp);
+            EC_POINT_free(temp_ec);
 
         }
-
         //选择一个包含从1到n所有整数的数组π，并将其顺序shuffle,最后打乱
          std::shuffle(_pi, _pi + user_count_advertiser, std::default_random_engine(std::random_device()()));
          //初始化Ct_     
@@ -919,6 +915,7 @@ public:
         //初始化CA_,CB_
         message_p3_->CA_ = new EC_POINT *[user_count_advertiser];
         message_p3_->CB_ = new EC_POINT *[user_count_advertiser];
+
         //定义t_,s_,B_
         BIGNUM **t_,**s_,**B_;
         t_ = new BIGNUM *[user_count_advertiser];
@@ -931,19 +928,18 @@ public:
             ai = BN_new();
             ai = BN_rand(256);
             //t_i赋值
+            t_[i] = BN_new();
             t_[i] = BN_rand(256);
 
             ElGamal_ciphertext *E_alpha;
             E_alpha = new ElGamal_ciphertext(w1->get_curve(), w1->get_pkA(), w1->get_Ha()); 
             ElGamal_mul(w1->get_curve(), E_alpha, E_alpha, ai, ctx);
+
             //计算Cti_
             message_p3_->Ct_[i] = new ElGamal_ciphertext(w1->get_curve());
-            //Cti_.C1=Ei+Cti.C1,Cti_.C2=Fi+Cti.C1
-            EC_POINT_add(w1->get_curve(), message_p3_->Ct_[i]->C1,message_p3_->Ct[_pi[i]-1]->C1,E_alpha->C1,temp_ctx);
-            EC_POINT_add(w1->get_curve(), message_p3_->Ct_[i]->C2,message_p3_->Ct[_pi[i]-1]->C2,E_alpha->C2,temp_ctx);
-
-            //证明
-            
+            ElGamal_add(w1->get_curve(),message_p3_->Ct_[i],E_alpha,message_p3_->Ct[_pi[i]-1],temp_ctx);
+            //证明   
+            s_[i] = BN_new();         
             s_[i] = BN_rand(256);
             // 将πj转化为BIGNUM
             _pi_[i] = BN_new();
@@ -972,16 +968,19 @@ public:
         BN_zero(alpha_); 
         BN_zero(delta_);     
 
-#pragma omp parallel for
+//#pragma omp parallel for
         for (int i = 0; i < user_count_advertiser; ++i){
             BN_CTX* temp_ctx = BN_CTX_new();
             EC_POINT *temp1 = EC_POINT_new(w1->get_curve());
             EC_POINT *temp2 = EC_POINT_new(w1->get_curve());
             
-            //计算CB_[i] = (X_)^(pi_[i])*G2+t_[i]*Ha
+            //计算CB_[i] = B'[i]*G2+t_[i]*Ha
             BIGNUM *alphai,*deltai;
+            alphai = BN_new();
+            deltai = BN_new();
             alphai = BN_rand(256);
             deltai = BN_rand(256);
+            //B'[i] = x'^(pi_[i])
             B_[i] = BN_new();
             BN_mod_exp(B_[i],x_,_pi_[i],w1->get_order(),temp_ctx);
           
@@ -991,13 +990,15 @@ public:
             EC_POINT_add(w1->get_curve(), message_p3_->CB_[i],temp1,temp2,temp_ctx);            
 
             //计算alpha_ = alpha_ - alphai*B_[i]
-            BN_mul(alphai,B_[i],alphai,temp_ctx);
-            BN_sub(alpha_,alpha_,B_[i]);
+            BN_mod_mul(alphai,B_[i],alphai,w1->get_order(),temp_ctx);
+            BN_mod_sub(alpha_,alpha_,B_[i],w1->get_order(),temp_ctx);
 
             //计算delta_ = delta - deltai*B_[i]
-            BN_mul(delta_,B_[i],deltai,temp_ctx);
-            BN_sub(delta_,delta_,B_[i]);
+            BN_mod_mul(deltai,B_[i],deltai,w1->get_order(),temp_ctx);
+            BN_mod_sub(delta_,delta_,B_[i],w1->get_order(),temp_ctx);
 
+            BN_free(alphai);
+            BN_free(deltai);
             EC_POINT_free(temp1);
             EC_POINT_free(temp2);
             BN_CTX_free(temp_ctx);
@@ -1011,6 +1012,10 @@ public:
             w1->to_string(ctx),
             EC_POINT_to_string(w1->get_curve(),message_p3_->CB_[2],ctx)
         );  
+        // std::cout<<"x"<<BN_to_string(x_)<<std::endl;
+        // std::cout<<"y"<<BN_to_string(y_)<<std::endl;
+        // std::cout<<"z"<<BN_to_string(z_)<<std::endl;
+
         //初始化CD__
         message_p3_->CD__ = new EC_POINT *[user_count_advertiser];
         //初始化F_,计算F= E(alpha_) = (alpha_*pkA,alpha_*Ha)   
@@ -1031,21 +1036,23 @@ public:
             temp1= BN_new();
             di_= BN_new();
             //计算Di_=y_*pi_[i]+(X_)^(pi_[i])
-            BN_exp(temp1,x_,_pi_[i],temp_ctx);
-            BN_mul(Di_,y_,_pi_[i],temp_ctx);
-            BN_add(Di_,Di_,temp1);
+            BN_mod_exp(temp1,x_,_pi_[i],w1->get_order(),temp_ctx);
+            BN_mod_mul(Di_,y_,_pi_[i],w1->get_order(),temp_ctx);
+            BN_mod_add(Di_,Di_,temp1,w1->get_order(),temp_ctx);
             //Di__=Di_-z_
-            BN_sub(Di__,Di_,z_);            
+            BN_mod_sub(Di__,Di_,z_,w1->get_order(),temp_ctx);            
             //计算di_=y_*s_[i]+t_[i]
-            BN_mul(di_,y_,s_[i],temp_ctx);
-            BN_add(di_,di_,t_[i]);
+            BN_mod_mul(di_,y_,s_[i],w1->get_order(),temp_ctx);
+            BN_mod_add(di_,di_,t_[i],w1->get_order(),temp_ctx);
             EC_POINT *temp2 = EC_POINT_new(w1->get_curve());
             //计算CDi__= Di_*G2+di_*Ha 
             message_p3_->CD__[i]= EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(),message_p3_->CD__[i],NULL,w1->get_G2(),Di_,temp_ctx);
-            EC_POINT_mul(w1->get_curve(),temp2,NULL,w1->get_Ha(),di_,temp_ctx);
+            EC_POINT_mul(w1->get_curve(),message_p3_->CD__[i],w1->get_order(),w1->get_G2(),Di__,temp_ctx);
+            EC_POINT_mul(w1->get_curve(),temp2,w1->get_order(),w1->get_Ha(),di_,temp_ctx);
+            EC_POINT_add(w1->get_curve(),message_p3_->CD__[i],message_p3_->CD__[i],temp2,temp_ctx);
+
             //计算E_ = E_ * D__[i]
-            BN_mul(message_p3_->E_,message_p3_->E_,Di__,temp_ctx);
+            BN_mod_mul(message_p3_->E_,message_p3_->E_,Di__,w1->get_order(),temp_ctx);
 
             //计算F_= F_ + B_[i]*Ct_[i]
             ElGamal_ciphertext *temp3;
@@ -1055,7 +1062,9 @@ public:
 
             //解密得到L = {Li i in 1,n}
             message_p3_->L[i]= EC_POINT_new(w1->get_curve());
-            message_p3_->L[i] = ElGamal_decrypt(w1,sk_p,message_p3_->Ct_[i],temp_ctx);
+            EC_POINT_mul(w1->get_curve(), temp2, NULL,  message_p3_->Ct_[i]->C2, sk_p, temp_ctx);        
+            EC_POINT_invert(w1->get_curve(), temp2, temp_ctx);                                       
+            EC_POINT_add(w1->get_curve(), message_p3_->L[i], message_p3_->Ct_[i]->C1, temp2, temp_ctx); 
 
             BN_free(Di_);
             BN_free(Di__);
@@ -1067,26 +1076,33 @@ public:
 
         //选择一个sk_p_
         BIGNUM *sk_p_;
+        sk_p_ = BN_new();
         sk_p_ = BN_rand(256);
         
         //message_p3_->pk_p_=Ha*sk_p_
         message_p3_->pk_p_=EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), message_p3_->pk_p_,NULL,w1->get_Ha(),sk_p_,ctx);
-        //计算GSP_= sk_p_*Ha；GSP= sk_p*Ha
+        EC_POINT_mul(w1->get_curve(), message_p3_->pk_p_,w1->get_order(),w1->get_Ha(),sk_p_,ctx);
+        //计算GSP_= sk_p_*G2；GSP= sk_p*G2
+
         message_p3_->GSP_ = EC_POINT_new(w1->get_curve());
         message_p3_->GSP = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), message_p3_->GSP_,NULL,w1->get_Ha(),sk_p_,ctx);
-        EC_POINT_mul(w1->get_curve(), message_p3_->GSP,NULL,w1->get_Ha(),sk_p,ctx);
+        EC_POINT_mul(w1->get_curve(), message_p3_->GSP_,w1->get_order(),w1->get_G2(),sk_p_,ctx);
+        EC_POINT_mul(w1->get_curve(), message_p3_->GSP,w1->get_order(),w1->get_G2(),sk_p,ctx);
         
-        //tp = Hash(w1||GSP||pk_p')
-        BIGNUM *tp = BN_hash(
+        //tp_h = Hash(w1||GSP||pk_p')
+        BIGNUM *tp_h = BN_hash(
             w1->to_string(ctx),
             EC_POINT_to_string(w1->get_curve(),message_p3_->GSP_,ctx),
             EC_POINT_to_string(w1->get_curve(),message_p3_->pk_p_,ctx)
         );
+        
+        //sk_p_hat = tp_h*sk_p+sk_p_
         message_p3_->sk_p_hat = BN_new();
-        BN_mul(message_p3_->sk_p_hat,tp,sk_p,ctx);
-        BN_add(message_p3_->sk_p_hat,message_p3_->sk_p_hat,sk_p_);
+        BN_mod_mul(message_p3_->sk_p_hat,tp_h,sk_p,w1->get_order(),ctx);
+        BN_mod_add(message_p3_->sk_p_hat,message_p3_->sk_p_hat,sk_p_,w1->get_order(),ctx);
+
+        // EC_POINT *left = EC_POINT_new(w1->get_curve());
+        // EC_POINT *right = EC_POINT_new(w1->get_curve());
 
         //初始化V
         ElGamal_ciphertext **V;
@@ -1137,7 +1153,7 @@ public:
         BN_free(z_);
         BN_free(k2_);
         BN_free(kq_);
-        BN_free(tp);
+        BN_free(tp_h);
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_free(b[j]);
