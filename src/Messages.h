@@ -932,7 +932,7 @@ public:
     {
         this->user_count_advertiser = user_count_advertiser;
         this->user_count_platform = user_count_platform;
-        Messages::Msg_P3 msg_p3;
+        Messages::Msg_P3_ msg_p3;
         msg_p3.ParseFromString(message);
         J = new EC_POINT *[user_count_platform];
         L = new EC_POINT *[user_count_advertiser];
