@@ -704,6 +704,8 @@ public:
             Sum_E = ElGamal_encrypt(w1, zero, ctx);
             BN_free(zero);
         }
+        //std::cout<<Sum_E->to_string(w1->get_curve(),ctx)<<std::endl;
+        message_a4->Sum_E = new ElGamal_ciphertext(w1->get_curve(),Sum_E);
         // 解密Sum_E
         EC_POINT *Sum_D = ElGamal_decrypt(w1, skA, Sum_E, ctx);
         // 测试Sum_D是否等于Sum_d
@@ -1015,6 +1017,8 @@ public:
             Sum_E = ElGamal_encrypt(w1, zero, ctx);
             BN_free(zero);
         }
+        //std::cout<<Sum_E->to_string(w1->get_curve(),ctx)<<std::endl;
+        message_a4_->Sum_E = new ElGamal_ciphertext(w1->get_curve(),Sum_E);
         // 解密Sum_E
         EC_POINT *Sum_D = ElGamal_decrypt(w1, skA, Sum_E, ctx);
         // 测试Sum_D是否等于Sum_d

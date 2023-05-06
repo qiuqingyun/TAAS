@@ -1329,7 +1329,7 @@ public:
     EC_POINT *GK_ = nullptr;
     EC_POINT *pkA__ = nullptr;
     BIGNUM *skA_hat_ = nullptr;
-
+    ElGamal_ciphertext *Sum_E = nullptr;
     Message_A4() {}
 
     // 使用COPY深拷贝构造函数
@@ -1343,6 +1343,8 @@ public:
         EC_POINT_copy(GK, message->GK);
         EC_POINT_copy(GK_, message->GK_);
         EC_POINT_copy(pkA__, message->pkA__);
+        Sum_E = new ElGamal_ciphertext(curve, message->Sum_E);
+
     }
 
     // 从string反序列化
@@ -1355,6 +1357,8 @@ public:
         GK_ = EC_POINT_deserialize(curve, msg_a4.gk_prime(), ctx);
         pkA__ = EC_POINT_deserialize(curve, msg_a4.pka_prime_prime(), ctx);
         skA_hat_ = BN_deserialize(msg_a4.ska_hat_prime());
+        Sum_E = new ElGamal_ciphertext(curve, msg_a4.sum_e(),ctx);
+
     }
 
     // 释放内存
@@ -1385,6 +1389,11 @@ public:
             BN_free(skA_hat_);
             skA_hat_ = nullptr;
         }
+        if (Sum_E != nullptr)
+        {
+            delete Sum_E;
+            Sum_E = nullptr;
+        }
     }
 
     // 获取字节数
@@ -1396,6 +1405,7 @@ public:
         {
             size += BN_bn2mpi(Sum, NULL);
         }
+        size += Sum_E->get_size(curve, ctx);
         size += EC_POINT_point2oct(curve, GK, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
         size += EC_POINT_point2oct(curve, GK_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
         size += EC_POINT_point2oct(curve, pkA__, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
@@ -1421,6 +1431,7 @@ public:
             msg_a4.set_sum(BN_serialize(zero));
             BN_free(zero);
         }
+        Sum_E->insert(curve, msg_a4.mutable_sum_e(), ctx);
         msg_a4.set_gk(EC_POINT_serialize(curve, GK, ctx));
         msg_a4.set_gk_prime(EC_POINT_serialize(curve, GK_, ctx));
         msg_a4.set_pka_prime_prime(EC_POINT_serialize(curve, pkA__, ctx));
@@ -1439,6 +1450,7 @@ public:
     EC_POINT *GK_ = nullptr;
     EC_POINT *pkA__ = nullptr;
     BIGNUM *skA_hat_ = nullptr;
+    ElGamal_ciphertext *Sum_E = nullptr;
 
     Message_A4_() {}
 
@@ -1453,6 +1465,7 @@ public:
         EC_POINT_copy(GK, message->GK);
         EC_POINT_copy(GK_, message->GK_);
         EC_POINT_copy(pkA__, message->pkA__);
+        Sum_E = new ElGamal_ciphertext(curve, message->Sum_E);
     }
 
     // 从string反序列化
@@ -1465,6 +1478,7 @@ public:
         GK_ = EC_POINT_deserialize(curve, msg_a4.gk_prime(), ctx);
         pkA__ = EC_POINT_deserialize(curve, msg_a4.pka_prime_prime(), ctx);
         skA_hat_ = BN_deserialize(msg_a4.ska_hat_prime());
+        Sum_E = new ElGamal_ciphertext(curve, msg_a4.sum_e(),ctx);
     }
 
     // 释放内存
@@ -1495,6 +1509,11 @@ public:
             BN_free(skA_hat_);
             skA_hat_ = nullptr;
         }
+        if (Sum_E != nullptr)
+        {
+            delete Sum_E;
+            Sum_E = nullptr;
+        }
     }
 
     // 获取字节数
@@ -1506,6 +1525,7 @@ public:
         {
             size += BN_bn2mpi(Sum, NULL);
         }
+        size += Sum_E->get_size(curve, ctx);
         size += EC_POINT_point2oct(curve, GK, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
         size += EC_POINT_point2oct(curve, GK_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
         size += EC_POINT_point2oct(curve, pkA__, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
@@ -1531,6 +1551,7 @@ public:
             msg_a4.set_sum(BN_serialize(zero));
             BN_free(zero);
         }
+        Sum_E->insert(curve, msg_a4.mutable_sum_e(), ctx);
         msg_a4.set_gk(EC_POINT_serialize(curve, GK, ctx));
         msg_a4.set_gk_prime(EC_POINT_serialize(curve, GK_, ctx));
         msg_a4.set_pka_prime_prime(EC_POINT_serialize(curve, pkA__, ctx));

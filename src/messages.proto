@@ -172,6 +172,7 @@ message Msg_A4{
     bytes GK_prime = 3;
     bytes pkA_prime_prime = 4;
     bytes skA_hat_prime = 5;
+    Msg_ElGamal_ciphertext Sum_E = 6;
 }
 message Msg_A4_{
     // BIGNUM *Sum = nullptr;
@@ -184,4 +185,5 @@ message Msg_A4_{
     bytes GK_prime = 3;
     bytes pkA_prime_prime = 4;
     bytes skA_hat_prime = 5;
+    Msg_ElGamal_ciphertext Sum_E = 6;
 }
