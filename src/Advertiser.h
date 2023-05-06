@@ -27,6 +27,7 @@ class Advertiser
     Message_P1 *message_p1 = nullptr;
     Message_P3 *message_p3 = nullptr;
     Message_P3_ *message_p3_ = nullptr;
+    std::string msg_p3_;
     // debug
     EC_POINT *Sum_d = nullptr;
 
@@ -334,7 +335,7 @@ public:
             EC_POINT_copy(message_a2->A[i], A[i]);
         }
 // 并行化
-#pragma omp parallel for
+//#pragma omp parallel for
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
@@ -519,7 +520,7 @@ public:
         message_a2->F = new ElGamal_ciphertext(w1->get_curve(), w1->get_pkA(), w1->get_Ha());
         ElGamal_mul(w1->get_curve(), message_a2->F, message_a2->F, rho_, ctx);
 // 并行化
-#pragma omp parallel for
+//#pragma omp parallel for
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
@@ -532,6 +533,7 @@ public:
             EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->C_[j]->C2, skA, temp_ctx);        // Cj2*skA
             EC_POINT_invert(w1->get_curve(), temp, temp_ctx);                                       // (Cj2*skA)^{-1}
             EC_POINT_add(w1->get_curve(), message_a2->Q[j], message_a2->C_[j]->C1, temp, temp_ctx); // Cj1 + (Cj2*skA)^{-1}
+            
 // 线程安全
 #pragma omp critical
             {
@@ -653,6 +655,7 @@ public:
             char *temp_L = EC_POINT_point2hex(w1->get_curve(), message_p3->L[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
             char *temp_A = EC_POINT_point2hex(w1->get_curve(), A[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
             Y[i] = temp_L;
+            //std::cout<<"i"<<i<<Y[i]<<std::endl;
 // 线程安全
 #pragma omp critical
             L_A->insert(std::make_pair(
@@ -678,12 +681,16 @@ public:
         // 同态累加交集向量中的 ElGamal_ciphertext 得到 Sum_E
         ElGamal_ciphertext *Sum_E = nullptr;
         if (intersection->size() > 0)
-        {
+        {   
             // 将Sum_E赋值为交集向量中的第一个元素在A_V中的value
             Sum_E = new ElGamal_ciphertext(w1->get_curve(), A_V->at(L_A->at(intersection->at(0))), ctx);
+        // std::cout<<"sum_E值"<<std::endl;
+        // std::cout<<"1"<<EC_POINT_to_string(w1->get_curve(),Sum_E->C1,ctx)<<std::endl;
+        // std::cout<<EC_POINT_to_string(w1->get_curve(),Sum_E->C2,ctx)<<std::endl;
             // 循环累加交集向量中的 ElGamal_ciphertext
             for (size_t i = 1; i < intersection->size(); ++i)
             {
+                //std::cout<<intersection->at(i)<<std::endl;
                 ElGamal_ciphertext *temp = new ElGamal_ciphertext(w1->get_curve(), A_V->at(L_A->at(intersection->at(i))), ctx);
                 ElGamal_add(w1->get_curve(), Sum_E, Sum_E, temp, ctx);
                 delete temp;
@@ -819,11 +826,11 @@ public:
             BN_one(E__);
 
             //初始化Ct_x_ = Ct[1]*x^(1)
-            ElGamal_ciphertext *Ct_x_  = new ElGamal_ciphertext(w1->get_curve(), message_p3_->Ct[0]->C1, message_p3_->Ct[0]->C1);
-            ElGamal_mul(w1->get_curve(), Ct_x_, Ct_x_, x_, ctx);
-            //初始化V_x_ = V[1]*x^(1)
-            ElGamal_ciphertext *V_x_  = new ElGamal_ciphertext(w1->get_curve(),V[0]->C1,V[0]->C2 );
-            ElGamal_mul(w1->get_curve(), V_x_, V_x_, x_, ctx);
+            ElGamal_ciphertext *Ct_x_  = new ElGamal_ciphertext(w1->get_curve());
+            ElGamal_mul(w1->get_curve(), Ct_x_, message_p3_->Ct[0], x_, ctx);
+            //初始化V_x_ = V[0]*x_
+            ElGamal_ciphertext *V_x_  = new ElGamal_ciphertext(w1->get_curve());
+            ElGamal_mul(w1->get_curve(), V_x_, V[0], x_, ctx);
 
 //#pragma omp parallel for
             for (int i = 0; i < user_count_advertiser; ++i){     
@@ -952,26 +959,25 @@ public:
             OPENSSL_free(temp_J);
             BN_CTX_free(temp_ctx);
         }
-        // 使用unordered_map存储Li与Ai的关系，并将其分配在堆内存中
-        std::unordered_map<std::string, std::string> *L_A = new std::unordered_map<std::string, std::string>();
+        // 使用unordered_map存储Li与Vi的关系，并将其分配在堆内存中
+        std::unordered_map<std::string, Messages::Msg_ElGamal_ciphertext> *L_V = nullptr;
+        L_V = new std::unordered_map<std::string, Messages::Msg_ElGamal_ciphertext>();
+
         // 将向量L的值存入向量Y中
         std::string *Y = new std::string[user_count_advertiser];
 // 并行化
-#pragma omp parallel for
+//#pragma omp parallel for
         for (int i = 0; i < user_count_advertiser; ++i)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
             char *temp_L = EC_POINT_point2hex(w1->get_curve(), message_p3_->L[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
-            char *temp_A = EC_POINT_point2hex(w1->get_curve(), A[i], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            Messages::Msg_ElGamal_ciphertext temp_V ;
+            temp_V = *message_p3_->V_[i]->serialize(w1->get_curve(),temp_ctx);
             Y[i] = temp_L;
-// 线程安全
 #pragma omp critical
-            L_A->insert(std::make_pair(
-                temp_L,
-                temp_A));
+            L_V->insert(std::make_pair(temp_L,temp_V));
             // 释放内存
             OPENSSL_free(temp_L);
-            OPENSSL_free(temp_A);
             BN_CTX_free(temp_ctx);
         }
         // 对向量X进行排序
@@ -989,15 +995,14 @@ public:
         // 同态累加交集向量中的 ElGamal_ciphertext 得到 Sum_E
         ElGamal_ciphertext *Sum_E = nullptr;
         if (intersection->size() > 0)
-        {
-            // 将Sum_E赋值为交集向量中的第一个元素在A_V中的value
-            Sum_E = new ElGamal_ciphertext(w1->get_curve(), A_V->at(L_A->at(intersection->at(0))), ctx);
-
-    
+        {   
+            // 将Sum_E赋值为交集向量中的第一个元素在L_V中的value
+            Sum_E = new ElGamal_ciphertext(w1->get_curve(), L_V->at(intersection->at(0)), ctx); 
             // 循环累加交集向量中的 ElGamal_ciphertext
             for (size_t i = 1; i < intersection->size(); ++i)
-            {
-                ElGamal_ciphertext *temp = new ElGamal_ciphertext(w1->get_curve(), A_V->at(L_A->at(intersection->at(i))), ctx);
+            {   
+                //std::cout<<intersection->at(i)<<std::endl;
+                ElGamal_ciphertext *temp = new ElGamal_ciphertext(w1->get_curve(), L_V->at(intersection->at(i)), ctx);
                 ElGamal_add(w1->get_curve(), Sum_E, Sum_E, temp, ctx);
                 delete temp;
             }
@@ -1039,7 +1044,7 @@ public:
         BN_mod_mul(message_a4_->skA_hat_, tb, skA, w1->get_order(), ctx);
         BN_mod_add(message_a4_->skA_hat_, message_a4_->skA_hat_, skA__, w1->get_order(), ctx);
         // 释放内存L_A,X,Y,intersection,Sum_E,skA__,tb
-        delete L_A;
+        delete L_V;
         delete[] X;
         delete[] Y;
         delete intersection;
@@ -1090,6 +1095,7 @@ public:
     void set_message_p3_(std::string message, BN_CTX *ctx)
     {
         message_p3_ = new Message_P3_(w1->get_curve(), message, user_count_advertiser, user_count_platform, ctx);
+        msg_p3_ = message;
     }
     std::string get_proof(BN_CTX *ctx) { return proof->serialize(w1->get_curve(), ctx); }
     std::string get_message_a2(BN_CTX *ctx)
