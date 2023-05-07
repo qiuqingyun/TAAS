@@ -22,7 +22,7 @@ int main(int argc, char *argv[])
     // 开始测试
 
     test_verify_(user_count_advertiser);
-    //test_verify(user_count_advertiser);
+    test_verify(user_count_advertiser);
     return 0;
 }
 

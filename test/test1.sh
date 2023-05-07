@@ -23,8 +23,6 @@ do
         evidence=$(echo $result | jq .data.size.evidence)
         proof=$(echo $result | jq .data.size.proof)
         psi_size=$(echo $result | jq .data.size.psi)
-        asd=$(echo $result)
-        echo -e "$asd\n$input_size\n$evidence_gen\n$prove_gen\n$prove_verify\n$psi_time\n$evidence\n$proof\n$psi_size\n" >> ./result.log
-
+        echo -e "$input_size\n$evidence_gen\n$prove_gen\n$prove_verify\n$psi_time\n$evidence\n$proof\n$psi_size\n" >> ./result.log
     done
 done

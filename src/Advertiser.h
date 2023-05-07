@@ -684,9 +684,6 @@ public:
         {   
             // 将Sum_E赋值为交集向量中的第一个元素在A_V中的value
             Sum_E = new ElGamal_ciphertext(w1->get_curve(), A_V->at(L_A->at(intersection->at(0))), ctx);
-        // std::cout<<"sum_E值"<<std::endl;
-        // std::cout<<"1"<<EC_POINT_to_string(w1->get_curve(),Sum_E->C1,ctx)<<std::endl;
-        // std::cout<<EC_POINT_to_string(w1->get_curve(),Sum_E->C2,ctx)<<std::endl;
             // 循环累加交集向量中的 ElGamal_ciphertext
             for (size_t i = 1; i < intersection->size(); ++i)
             {
@@ -771,35 +768,44 @@ public:
                 return 1;
             }
             bool result_Ai = true;
+            bool result_Ha = true;
 #pragma omp parallel for           
-            for (int i = 0; i < user_count_advertiser; ++i){     
+            for (int i = 0; i < user_count_advertiser; ++i)
+            {     
                 BN_CTX* temp_ctx = BN_CTX_new();
+                EC_POINT *left1 = EC_POINT_new(w1->get_curve());
+                EC_POINT *right1 = EC_POINT_new(w1->get_curve());
                 //计算hash(w1||ct1i||ct2i)
                 BIGNUM *Si_ = BN_hash(
                     w1->to_string(temp_ctx),
                     EC_POINT_to_string(w1->get_curve(),message_p3_->Ct1_[i],temp_ctx),
                     EC_POINT_to_string(w1->get_curve(),message_p3_->Ct2_[i],temp_ctx)
-                );   
-                EC_POINT *tempt = EC_POINT_new(w1->get_curve());  
+                );
+                EC_POINT *tempt = EC_POINT_new(w1->get_curve());
                 //加密验证：x_hat_[i]*Ai + y_hat_[i]*pk_p = s_[i]*Ct1[i]+Ct1_[i]
-                EC_POINT_mul(w1->get_curve(),left,NULL,message_a2->A[i],message_p3_->x_hat_[i],temp_ctx);
+                EC_POINT_mul(w1->get_curve(),left1,NULL,message_a2->A[i],message_p3_->x_hat_[i],temp_ctx);
                 EC_POINT_mul(w1->get_curve(),tempt,NULL,message_p3_->pk_p,message_p3_->y_hat_[i],temp_ctx);
-                EC_POINT_add(w1->get_curve(),left,left,tempt,temp_ctx);
-                EC_POINT_mul(w1->get_curve(),right,NULL,message_p3_->Ct[i]->C1,Si_,temp_ctx);
-                EC_POINT_add(w1->get_curve(),right,right,message_p3_->Ct1_[i],temp_ctx);
+                EC_POINT_add(w1->get_curve(),left1,left1,tempt,temp_ctx);
+                EC_POINT_mul(w1->get_curve(),right1,NULL,message_p3_->Ct[i]->C1,Si_,temp_ctx);
+//#pragma omp critical
+                EC_POINT_add(w1->get_curve(),right1,right1,message_p3_->Ct1_[i],temp_ctx);   
+#pragma omp critical                                                                       
 #pragma omp atomic                
-                result_Ai &= (EC_POINT_cmp(w1->get_curve(), left, right, ctx)==0);
+                result_Ai &= (EC_POINT_cmp(w1->get_curve(), left1, right1, ctx)==0);
+                EC_POINT_free(right1);
+                EC_POINT_free(left1);
                 //加密验证：y_hat_[i]*Ha = s_[i]*Ct2[i]+Ct2_[i]
-                EC_POINT_mul(w1->get_curve(),left,NULL,w1->get_Ha(),message_p3_->y_hat_[i],temp_ctx);
-                EC_POINT_mul(w1->get_curve(),right,NULL,message_p3_->Ct[i]->C2,Si_,temp_ctx);
-                EC_POINT_add(w1->get_curve(),right,right,message_p3_->Ct2_[i],temp_ctx);
-                // if (EC_POINT_cmp(w1->get_curve(), left, right, ctx)!=0)
-                // {
-                //     std::cout << "failed: A4" << std::endl;
-                //          std::cout << "   A4: y_hat_[i]*Ha != s_[i]*Ct2[i]+Ct2_[i]" << std::endl;
-                //         //return 1;
-                // }
+                EC_POINT *left2 = EC_POINT_new(w1->get_curve());
+                EC_POINT *right2 = EC_POINT_new(w1->get_curve());                
+                EC_POINT_mul(w1->get_curve(),left2,NULL,w1->get_Ha(),message_p3_->y_hat_[i],temp_ctx);
+                EC_POINT_mul(w1->get_curve(),right2,NULL,message_p3_->Ct[i]->C2,Si_,temp_ctx);
+                EC_POINT_add(w1->get_curve(),right2,right2,message_p3_->Ct2_[i],temp_ctx);
+#pragma omp critical              
+#pragma omp atomic                
+                result_Ha &= (EC_POINT_cmp(w1->get_curve(), left2, right2, ctx)==0);     
                 EC_POINT_free(tempt);
+                EC_POINT_free(right2);
+                EC_POINT_free(left2);
                 BN_free(Si_);
                 BN_CTX_free(temp_ctx);
             }
@@ -809,50 +815,58 @@ public:
                 std::cout << "A4: x_hat_[i]*Ai + y_hat_[i]*pk_p != s_[i]*Ct1[i]+Ct1_[i]" << std::endl;
                 return 1;
             }
+            if (!result_Ha)
+            {
+                std::cout << "failed: A4" << std::endl;
+                std::cout << "   A4: y_hat_[i]*Ha != s_[i]*Ct2[i]+Ct2_[i]" << std::endl;
+                return 1;
+            }
             //计算x_=Hash(w1||CA[1])
             BIGNUM *x_ = BN_hash(
                 w1->to_string(ctx),
-                EC_POINT_to_string(w1->get_curve(),message_p3_->CA_[1],ctx)
+                EC_POINT_to_string(w1->get_curve(),message_p3_->CA_[0],ctx)
             );
             //计算y_=Hash(w1||CB1),z_=Hash(w1||CB2)
+            std::string CB2_str = EC_POINT_to_string(w1->get_curve(), message_p3_->CB_[0], ctx);
             BIGNUM *y_ = BN_hash(
+                "1",
                 w1->to_string(ctx),
-                EC_POINT_to_string(w1->get_curve(),message_p3_->CB_[1],ctx)
+                CB2_str
             );
             BIGNUM *z_ = BN_hash(
+                "2",
                 w1->to_string(ctx),
-                EC_POINT_to_string(w1->get_curve(),message_p3_->CB_[2],ctx)
+                CB2_str
             );
             //初始化E''=1
             BIGNUM *E__ ;
             E__ = BN_new();
             BN_one(E__);
-
             //初始化Ct_x_ = Ct[1]*x^(1)
             ElGamal_ciphertext *Ct_x_  = new ElGamal_ciphertext(w1->get_curve());
             ElGamal_mul(w1->get_curve(), Ct_x_, message_p3_->Ct[0], x_, ctx);
             //初始化V_x_ = V[0]*x_
             ElGamal_ciphertext *V_x_  = new ElGamal_ciphertext(w1->get_curve());
             ElGamal_mul(w1->get_curve(), V_x_, V[0], x_, ctx);
-
+            bool result_CD = true;
 #pragma omp parallel for
-            for (int i = 0; i < user_count_advertiser; ++i){     
+            for (int i = 0; i < user_count_advertiser; ++i)
+            {     
                 BN_CTX* temp_ctx = BN_CTX_new();
+                EC_POINT *right1 = EC_POINT_new(w1->get_curve());
                 //计算CDi'=y'*CAi'+CBi'
                 EC_POINT *CDi_ = EC_POINT_new(w1->get_curve());
                 EC_POINT *CZi_ = EC_POINT_new(w1->get_curve());
+#pragma omp critical
                 EC_POINT_mul(w1->get_curve(),CDi_,w1->get_order(),message_p3_->CA_[i],y_,temp_ctx);
                 EC_POINT_add(w1->get_curve(),CDi_,CDi_,message_p3_->CB_[i],temp_ctx);
                 //计算CZi' = z'*G_2               
                 EC_POINT_mul(w1->get_curve(),CZi_,NULL,w1->get_G2(),z_,temp_ctx);
-                EC_POINT_sub(w1->get_curve(),right,CDi_,CZi_,temp_ctx);
+                EC_POINT_sub(w1->get_curve(),right1,CDi_,CZi_,temp_ctx);
+#pragma omp critical                           
+#pragma omp atomic
                 //验证CDi''=CDi'-CZi'
-                if (EC_POINT_cmp(w1->get_curve(), message_p3_->CD__[i], right, ctx) != 0)
-                {
-                    std::cout << "failed: A4" << std::endl;
-                    std::cout <<i<< "A4: CDi''=CDi'-CZi'" << std::endl;
-                    //return 1;
-                }
+                result_CD &= (EC_POINT_cmp(w1->get_curve(), message_p3_->CD__[i], right1, ctx) == 0);
                 //计算E''=E''*(y'*i+x'^(i)-z')
                 BIGNUM *x_i_sub_z,*big_i,*y_i_,*x_big_i;
                 x_i_sub_z = BN_new();
@@ -863,27 +877,37 @@ public:
                 BN_mod_exp(x_big_i,x_,big_i,w1->get_order(),temp_ctx);
                 BN_mod_sub(x_i_sub_z,x_big_i,z_,w1->get_order(),temp_ctx);
                 BN_mod_mul(y_i_,y_,big_i,w1->get_order(),temp_ctx);
-                BN_mod_add(y_i_,y_i_,x_i_sub_z,w1->get_order(),temp_ctx);
+                BN_mod_add(y_i_,y_i_,x_i_sub_z,w1->get_order(),temp_ctx); 
+#pragma omp critical
                 BN_mod_mul(E__,E__,y_i_,w1->get_order(),temp_ctx);                
                 BN_mod_exp(x_big_i,x_,big_i,w1->get_order(),temp_ctx);
-                ElGamal_ciphertext *temp_el  = new ElGamal_ciphertext(w1->get_curve());
                 if (i>0){
+                    ElGamal_ciphertext *temp_el  = new ElGamal_ciphertext(w1->get_curve());
                     //计算Ct_x_ = Ct_x_+Ct[i]*x^(i)
                     ElGamal_mul(w1->get_curve(),temp_el,message_p3_->Ct[i],x_big_i,temp_ctx);
+#pragma omp critical
                     ElGamal_add(w1->get_curve(),Ct_x_,Ct_x_,temp_el,temp_ctx);
                     //计算V_x_ = V_x_+V[i]*x^(i)
                     ElGamal_mul(w1->get_curve(),temp_el,V[i],x_big_i,temp_ctx);
+#pragma omp critical
                     ElGamal_add(w1->get_curve(),V_x_,V_x_,temp_el,temp_ctx);
-
+                    delete temp_el;
+                    temp_el = nullptr;
                 }
                 BN_free(big_i);
                 BN_free(x_big_i);
                 BN_free(x_i_sub_z);
                 BN_free(y_i_);
+                EC_POINT_free(right1);
                 EC_POINT_free(CDi_);
                 EC_POINT_free(CZi_);
                 BN_CTX_free(temp_ctx);
-            }            
+            }
+            if (!result_CD){
+                std::cout << "failed: A4" << std::endl;
+                std::cout << "A4: CDi''=CDi'-CZi'" << std::endl;
+                return 1;
+            }
             //验证E''=E'
             if (BN_cmp(E__,message_p3_->E_) != 0)
             {
