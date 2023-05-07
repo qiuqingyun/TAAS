@@ -484,7 +484,7 @@ public:
         // 保存向量J
         message_p3->J = new EC_POINT *[user_count_platform];
 // 并行化
-//#pragma omp parallel for
+#pragma omp parallel for
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
@@ -785,7 +785,7 @@ public:
         // 保存向量J
         message_p3_->J = new EC_POINT *[user_count_platform];
 // 并行化
-//#pragma omp parallel for
+#pragma omp parallel for
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
@@ -890,15 +890,13 @@ public:
             );
             message_p3_->x_hat_[i] = BN_new();
             message_p3_->y_hat_[i] = BN_new();
-//#pragma omp critical
             //计算xi_hat_[i] = si'*kq + xi''
             BN_mod_mul(message_p3_->x_hat_[i],Si_,kq,w1->get_order(), ctx);
             BN_mod_add(message_p3_->x_hat_[i],message_p3_->x_hat_[i],xi__,w1->get_order(), ctx);
             //计算yi_hat_[i]= si'*rri + yi''
 
             BN_mod_mul(message_p3_->y_hat_[i],rri,Si_,w1->get_order(), ctx);
-            BN_mod_add(message_p3_->y_hat_[i],message_p3_->y_hat_[i],yi__,w1->get_order(), ctx);
-
+            BN_mod_add(message_p3_->y_hat_[i],message_p3_->y_hat_[i],yi__,w1->get_order(), ctx);           
             BN_free(xi__);
             BN_free(yi__);
             BN_free(rri);
@@ -980,11 +978,12 @@ public:
             //计算CB_[i] = B'[i]*G2+t_[i]*Ha
             //B'[i] = x'^(pi_[i])
             B_[i] = BN_new();
+            
             BN_mod_exp(B_[i],x_,_pi_[i],w1->get_order(),temp_ctx);
             message_p3_->CB_[i]  = EC_POINT_new(w1->get_curve());
             EC_POINT_mul(w1->get_curve(),temp1, NULL,w1->get_G2(),B_[i],temp_ctx);
             EC_POINT_mul(w1->get_curve(),temp2,NULL, w1->get_Ha(),t_[i],temp_ctx);
-            EC_POINT_add(w1->get_curve(), message_p3_->CB_[i],temp1,temp2,temp_ctx);            
+            EC_POINT_add(w1->get_curve(), message_p3_->CB_[i],temp1,temp2,temp_ctx);                        
             BIGNUM *tempn;
             tempn= BN_new();
             //计算alpha_ = alpha_ - alpha[i]*B_[i]
@@ -1050,7 +1049,6 @@ public:
 
             //计算E_ = E_ * D__[i]
             BN_mod_mul(message_p3_->E_,message_p3_->E_,Di__,w1->get_order(),temp_ctx);
-
             //计算F_= F_ + B_[i]*Ct_[i]
             ElGamal_ciphertext *temp3;
             temp3 = new ElGamal_ciphertext(w1->get_curve());
@@ -1063,7 +1061,6 @@ public:
             EC_POINT_invert(w1->get_curve(), temp2, temp_ctx);                                       
             EC_POINT_add(w1->get_curve(), message_p3_->L[i], message_p3_->Ct_[i]->C1, temp2, temp_ctx); 
             //std::cout<<i<<"   "<<EC_POINT_to_string(w1->get_curve(),message_p3_->L[i],ctx)<<std::endl;
-
             BN_free(Di_);
             BN_free(Di__);
             BN_free(temp1);
@@ -1218,11 +1215,10 @@ public:
         // 使用unordered_map存储Li与Vi的关系，并将其分配在堆内存中
         std::unordered_map<std::string, Messages::Msg_ElGamal_ciphertext> *L_V = nullptr;
         L_V = new std::unordered_map<std::string, Messages::Msg_ElGamal_ciphertext>();
-
         // 将向量L的值存入向量Y中
         std::string *Y = new std::string[user_count_advertiser];
 // 并行化
-//#pragma omp parallel for
+#pragma omp parallel for
         for (int i = 0; i < user_count_advertiser; ++i)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
@@ -1331,7 +1327,7 @@ public:
         // 将向量L的值存入向量Y中
         std::string *Y = new std::string[user_count_advertiser];
 // 并行化
-//#pragma omp parallel for
+#pragma omp parallel for
         for (int i = 0; i < user_count_advertiser; ++i)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
