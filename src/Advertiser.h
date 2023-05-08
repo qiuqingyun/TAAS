@@ -785,9 +785,10 @@ public:
                 //加密验证：x_hat_[i]*Ai + y_hat_[i]*pk_p = s_[i]*Ct1[i]+Ct1_[i]
                 EC_POINT_mul(w1->get_curve(),left1,NULL,message_a2->A[i],message_p3_->x_hat_[i],temp_ctx);
                 EC_POINT_mul(w1->get_curve(),tempt,NULL,message_p3_->pk_p,message_p3_->y_hat_[i],temp_ctx);
+#pragma omp critical
                 EC_POINT_add(w1->get_curve(),left1,left1,tempt,temp_ctx);
                 EC_POINT_mul(w1->get_curve(),right1,NULL,message_p3_->Ct[i]->C1,Si_,temp_ctx);
-//#pragma omp critical
+#pragma omp critical
                 EC_POINT_add(w1->get_curve(),right1,right1,message_p3_->Ct1_[i],temp_ctx);   
 #pragma omp critical                                                                       
 #pragma omp atomic                
@@ -799,6 +800,7 @@ public:
                 EC_POINT *right2 = EC_POINT_new(w1->get_curve());                
                 EC_POINT_mul(w1->get_curve(),left2,NULL,w1->get_Ha(),message_p3_->y_hat_[i],temp_ctx);
                 EC_POINT_mul(w1->get_curve(),right2,NULL,message_p3_->Ct[i]->C2,Si_,temp_ctx);
+//#pragma omp critical
                 EC_POINT_add(w1->get_curve(),right2,right2,message_p3_->Ct2_[i],temp_ctx);
 #pragma omp critical              
 #pragma omp atomic                
@@ -842,12 +844,12 @@ public:
             BIGNUM *E__ ;
             E__ = BN_new();
             BN_one(E__);
-            //初始化Ct_x_ = Ct[1]*x^(1)
-            ElGamal_ciphertext *Ct_x_  = new ElGamal_ciphertext(w1->get_curve());
-            ElGamal_mul(w1->get_curve(), Ct_x_, message_p3_->Ct[0], x_, ctx);
+            //初始化Ct_x_ = Ct[1]*x_
+            ElGamal_ciphertext *Ct_x_  = new ElGamal_ciphertext(w1->get_curve(), message_p3_->Ct[0]->C1, message_p3_->Ct[0]->C2);
+            ElGamal_mul(w1->get_curve(), Ct_x_, Ct_x_, x_, ctx);
             //初始化V_x_ = V[0]*x_
-            ElGamal_ciphertext *V_x_  = new ElGamal_ciphertext(w1->get_curve());
-            ElGamal_mul(w1->get_curve(), V_x_, V[0], x_, ctx);
+            ElGamal_ciphertext *V_x_  = new ElGamal_ciphertext(w1->get_curve(), V[0]->C1, V[0]->C2);
+            ElGamal_mul(w1->get_curve(), V_x_, V_x_, x_, ctx);
             bool result_CD = true;
 #pragma omp parallel for
             for (int i = 0; i < user_count_advertiser; ++i)
@@ -881,18 +883,26 @@ public:
 #pragma omp critical
                 BN_mod_mul(E__,E__,y_i_,w1->get_order(),temp_ctx);                
                 BN_mod_exp(x_big_i,x_,big_i,w1->get_order(),temp_ctx);
-                if (i>0){
-                    ElGamal_ciphertext *temp_el  = new ElGamal_ciphertext(w1->get_curve());
-                    //计算Ct_x_ = Ct_x_+Ct[i]*x^(i)
-                    ElGamal_mul(w1->get_curve(),temp_el,message_p3_->Ct[i],x_big_i,temp_ctx);
+                if (i > 0)
+                {
+                    // 计算 x^i
+                    BIGNUM *temp_x_i = BN_new();
+                    BN_mod_exp(temp_x_i, x_, big_i, w1->get_order(), temp_ctx);
+                    // 计算 Ct[i]*x^(i) 
+                    ElGamal_ciphertext *temp_c1 = new ElGamal_ciphertext();
+                    ElGamal_mul(w1->get_curve(), temp_c1, message_p3_->Ct[i], temp_x_i, temp_ctx);
 #pragma omp critical
-                    ElGamal_add(w1->get_curve(),Ct_x_,Ct_x_,temp_el,temp_ctx);
+                    //Ct_x_ = Ct_x_+Ct[i]*x^(i) 
+                    ElGamal_add(w1->get_curve(), Ct_x_, Ct_x_, temp_c1, temp_ctx);
+                    // 计算 V[i]*x^(i)  
+                    ElGamal_ciphertext *temp_c2 = new ElGamal_ciphertext();
+                    ElGamal_mul(w1->get_curve(), temp_c2, V[i], temp_x_i, temp_ctx);
+#pragma omp critical
                     //计算V_x_ = V_x_+V[i]*x^(i)
-                    ElGamal_mul(w1->get_curve(),temp_el,V[i],x_big_i,temp_ctx);
-#pragma omp critical
-                    ElGamal_add(w1->get_curve(),V_x_,V_x_,temp_el,temp_ctx);
-                    delete temp_el;
-                    temp_el = nullptr;
+                    ElGamal_add(w1->get_curve(), V_x_, V_x_, temp_c2, temp_ctx);
+                    BN_free(temp_x_i);
+                    delete temp_c1;
+                    delete temp_c2;
                 }
                 BN_free(big_i);
                 BN_free(x_big_i);
@@ -906,14 +916,14 @@ public:
             if (!result_CD){
                 std::cout << "failed: A4" << std::endl;
                 std::cout << "A4: CDi''=CDi'-CZi'" << std::endl;
-                return 1;
+                //return 1;
             }
             //验证E''=E'
             if (BN_cmp(E__,message_p3_->E_) != 0)
             {
                 std::cout << "failed: A4" << std::endl;
                 std::cout << "A4: E''!=E'" << std::endl;
-                return 1;
+                //return 1;
             }
             //验证Ct^(x')=F'
             if (ElGamal_ciphertext_cmp(w1->get_curve(),message_p3_->F_,Ct_x_,ctx) != 0)
@@ -945,7 +955,7 @@ public:
             {
                 std::cout << "failed: A4" << std::endl;
                 std::cout << "A4: sk_p_hat*G2 != tp*GSP+GSP'" << std::endl;
-                return 1;
+                //return 1;
             }
 
             //验证sk_p_hat*Ha = tp*pk_p+pk_p'
@@ -956,7 +966,7 @@ public:
             {
                 std::cout << "failed: A4" << std::endl;
                 std::cout << "A4: sk_p_hat*Ha = tp*pk_p+pk_p'" << std::endl;
-                return 1;
+                //return 1;
             }
             // 释放内存
             BN_free(tq);

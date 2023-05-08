@@ -10,7 +10,7 @@ for thread in 0 1
 do
     echo -e "\n==== Threads: $thread ====\n" >> ./result.log
     # 循环遍历input_size数组
-    for i in 1 1024 4096 16384 65536 262144 1048576
+    for i in 1048576 262144 65536 16384 4096 1024  1
     do
         # 执行main，并将输出结果保存到变量result
         result=$(../build/bin/main $i $thread)
