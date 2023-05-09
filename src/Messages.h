@@ -130,18 +130,18 @@ public:
         BN_CTX_start(ctx);
         size_t size = 0;
         // 计算*W, *W_, *C1, *C1_, *U_, *A_, *D_, **U, **A, **D的字节数
-        size += EC_POINT_point2oct(curve, W, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, W_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C1, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C1_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, U_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, A_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, D_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, W, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, W_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C1, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C1_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, U_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, A_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, D_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         for (int i = 0; i < user_count_advertiser; i++)
         {
-            size += EC_POINT_point2oct(curve, U[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, A[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, D[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, U[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, A[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, D[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         }
         // 计算k_hat, x_hat, y_hat的字节数
         size += BN_num_bytes(k_hat);
@@ -223,7 +223,6 @@ public:
         Z_hat = BN_deserialize(msg_p1.z_hat());
         BN_CTX_end(ctx);
     }
-
     // 释放内存
     ~Message_P1()
     {
@@ -257,10 +256,10 @@ public:
     {
         BN_CTX_start(ctx);
         size_t size = 0;
-        size += EC_POINT_point2oct(curve, P_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, P_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         for (int i = 0; i < user_count_platform; i++)
         {
-            size += EC_POINT_point2oct(curve, P[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, P[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         }
         size += BN_num_bytes(Z_hat);
         BN_CTX_end(ctx);
@@ -594,9 +593,9 @@ public:
         BN_CTX_start(ctx);
         size_t size = 0;
         // 计算C,C_,CA,CB,CD_,A,E,F,Q,GS_,GS,pkA_,skA_hat的字节数
-        size += EC_POINT_point2oct(curve, GS_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, GS, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, pkA_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GS_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GS, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, pkA_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += BN_bn2mpi(skA_hat, NULL);
         size += BN_bn2mpi(E, NULL);
         size += F->get_size(curve, ctx);
@@ -604,20 +603,20 @@ public:
         {
             size += C[j]->get_size(curve, ctx);
             size += C_[j]->get_size(curve, ctx);
-            size += EC_POINT_point2oct(curve, CA[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, CB[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, CD_[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, Q[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CA[j], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CB[j], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CD_[j], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, Q[j], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         }
         for (int i = 0; i < user_count_advertiser; i++)
         {
-            size += EC_POINT_point2oct(curve, A[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, A[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         }
         // 计算C_1,C_2,x_hat,y_hat的字节数
         for (int j = 0; j < user_count_platform; j++)
         {
-            size += EC_POINT_point2oct(curve, C1_[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, C2_[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, C1_[j], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, C2_[j], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
             size += BN_bn2mpi(x_hat[j], NULL);
             size += BN_bn2mpi(y_hat[j], NULL);
         }
@@ -794,16 +793,16 @@ public:
         size_t size = 0;
         for (int i = 0; i < user_count_advertiser; i++)
         {
-            size += EC_POINT_point2oct(curve, L[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, L[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         }
         size += BN_bn2mpi(k2_hat, NULL);
-        size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C3, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C3_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C3, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C3_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += BN_bn2mpi(kq_hat, NULL);
-        size += EC_POINT_point2oct(curve, Q_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, A_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, Q_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, A_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         BN_CTX_end(ctx);
         return size;
     }
@@ -1193,25 +1192,25 @@ public:
             size += Ct_[i]->get_size(curve, ctx);
             size += BN_bn2mpi(x_hat_[i], NULL);
             size += BN_bn2mpi(y_hat_[i], NULL);
-            size += EC_POINT_point2oct(curve, L[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, Ct1_[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, Ct2_[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, CA_[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, CB_[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, CD__[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, L[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, Ct1_[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, Ct2_[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CA_[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CB_[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CD__[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         }
         size += F_->get_size(curve, ctx);
         size += F__->get_size(curve, ctx);
         size += BN_bn2mpi(k2_hat, NULL);
         size += BN_bn2mpi(sk_p_hat, NULL);
         size += BN_bn2mpi(E_, NULL);
-        size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, Q_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, GSP, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, GSP_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, pk_p, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, pk_p_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, Q_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GSP, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GSP_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, pk_p, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, pk_p_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         BN_CTX_end(ctx);
         return size;
     }
@@ -1340,9 +1339,9 @@ public:
             size += BN_bn2mpi(Sum, NULL);
         }
         size += Sum_E->get_size(curve, ctx);
-        size += EC_POINT_point2oct(curve, GK, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, GK_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, pkA__, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GK, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GK_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, pkA__, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += BN_bn2mpi(skA_hat_, NULL);
         BN_CTX_end(ctx);
         return size;
@@ -1460,9 +1459,9 @@ public:
             size += BN_bn2mpi(Sum, NULL);
         }
         size += Sum_E->get_size(curve, ctx);
-        size += EC_POINT_point2oct(curve, GK, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, GK_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, pkA__, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GK, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GK_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, pkA__, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += BN_bn2mpi(skA_hat_, NULL);
         BN_CTX_end(ctx);
         return size;
