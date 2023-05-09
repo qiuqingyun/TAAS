@@ -1140,6 +1140,7 @@ public:
             ElGamal_add(w1->get_curve(),message_p3_->F__,message_p3_->F__,temp1,temp_ctx);         
             BN_CTX_free(temp_ctx);
         }
+        //std::cout<<message_p3_->V_[0]->get_size(w1->get_curve(), ctx)<<std::endl;
 
         BN_free(x_);
         BN_free(y_);
