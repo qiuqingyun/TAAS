@@ -637,7 +637,7 @@ public:
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
-            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message_p3->J[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message_a2->Q[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
             X[j] = temp_J;
             // 释放内存
             OPENSSL_free(temp_J);
@@ -982,7 +982,7 @@ public:
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
-            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message_p3_->J[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message_a2->Q[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
             X[j] = temp_J;
             // 释放内存
             OPENSSL_free(temp_J);

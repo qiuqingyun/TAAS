@@ -86,7 +86,6 @@ message Msg_A2{
 }
 
 message Msg_P3{
-    // EC_POINT **J = nullptr;
     // EC_POINT **L = nullptr;
     // BIGNUM *k2_hat = nullptr;
     // EC_POINT *C2 = nullptr;
@@ -96,7 +95,6 @@ message Msg_P3{
     // BIGNUM *kq_hat = nullptr;
     // EC_POINT *Q_ = nullptr;
     // EC_POINT *A_ = nullptr;
-    repeated bytes J = 1;
     repeated bytes L = 2;
     bytes k2_hat = 3;
     bytes C2 = 4;
@@ -110,7 +108,6 @@ message Msg_P3{
 message Msg_P3_{
     // int user_count_advertiser;
     // int user_count_platform;
-    // EC_POINT **J = nullptr;
     // EC_POINT **L = nullptr;
     // BIGNUM *k2_hat = nullptr;
     // BIGNUM *sk_p_hat = nullptr;
@@ -135,7 +132,6 @@ message Msg_P3_{
     // EC_POINT *Q_ = nullptr;
     // ElGamal_ciphertext **V_ = nullptr;
 
-    repeated bytes J = 1;
     repeated bytes L = 2;
     bytes k2_hat = 3;
     bytes sk_p_hat = 4;

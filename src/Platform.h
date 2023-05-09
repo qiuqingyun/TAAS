@@ -23,7 +23,6 @@ class Platform
     std::unordered_map<std::string, std::string> *U_Evidence = nullptr;
     // 共享变量
     BIGNUM *k2 = BN_rand(256);
-    BIGNUM *k3 = BN_rand(256);
     ElGamal_ciphertext **V;
     EC_POINT **P = nullptr;
 
@@ -54,7 +53,6 @@ public:
         if (message_a4 != nullptr)
             delete message_a4;
         BN_free(k2);
-        BN_free(k3);
         for (int j = 0; j < user_count_platform; j++)
         {
             EC_POINT_free(P[j]);
@@ -251,9 +249,9 @@ public:
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
-            // 计算 Pj=k3*Wj*G2
+            // 计算 Pj=k2*Wj*G2
             P[j] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), P[j], NULL, w1->get_G2(), k3, temp_ctx);
+            EC_POINT_mul(w1->get_curve(), P[j], NULL, w1->get_G2(), k2, temp_ctx);
             EC_POINT_mul(w1->get_curve(), P[j], NULL, P[j], user_id_platform[j], temp_ctx);
             // 保存向量P
             message_p1->P[j] = EC_POINT_new(w1->get_curve());
@@ -263,9 +261,9 @@ public:
                 std::to_string(j),
                 w1->to_string(temp_ctx),
                 EC_POINT_to_string(w1->get_curve(), message_p1->P_, temp_ctx));
-            // 计算 Z_hat = Z_hat + tj*k3*Wj
+            // 计算 Z_hat = Z_hat + tj*k2*Wj
             BIGNUM *temp = BN_new();
-            BN_mul(temp, t_j, k3, temp_ctx);
+            BN_mul(temp, t_j, k2, temp_ctx);
             BN_mul(temp, temp, user_id_platform[j], temp_ctx);
 // 线程安全
 #pragma omp critical
@@ -481,18 +479,12 @@ public:
         BIGNUM **c = new BIGNUM *[user_count_advertiser];
         // 设置 Q'=0
         message_p3->Q_ = EC_POINT_new(w1->get_curve());
-        // 保存向量J
-        message_p3->J = new EC_POINT *[user_count_platform];
 // 并行化
 #pragma omp parallel for
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
             b[j] = BN_rand(256);
-            // 计算 Jj = k2*Qj
-            message_p3->J[j] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), message_p3->J[j], NULL, message_a2->Q[j], k2, temp_ctx);
-
             // 计算 Q' = Q' + bj*Qj
             EC_POINT *temp = EC_POINT_new(w1->get_curve());
             EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->Q[j], b[j], temp_ctx);
@@ -528,10 +520,10 @@ public:
         {
             BN_CTX *temp_ctx = BN_CTX_new();
             c[i] = BN_rand(256);
-            // 计算 Li = k3*k2*Ai
+            // 计算 Li = k2*Ai
             message_p3->L[i] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), message_p3->L[i], NULL, message_a2->A[i], k3, temp_ctx);
-            EC_POINT_mul(w1->get_curve(), message_p3->L[i], NULL, message_p3->L[i], k2, temp_ctx);
+#pragma omp critical
+            EC_POINT_mul(w1->get_curve(), message_p3->L[i], NULL, message_a2->A[i], k2, temp_ctx);
             // 计算 A' = A' + ci*Ai
             EC_POINT *temp = EC_POINT_new(w1->get_curve());
             EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->A[i], c[i], temp_ctx);
@@ -543,9 +535,9 @@ public:
             EC_POINT_free(temp);
             BN_CTX_free(temp_ctx);
         }
-        // 计算 kq = k3*k2
+        // 计算 kq = k2
         BIGNUM *kq = BN_new();
-        BN_mod_mul(kq, k3, k2, w1->get_order(), ctx);
+        BN_copy(kq,k2);
         // 计算 C3 = kq*A'
         message_p3->C3 = EC_POINT_new(w1->get_curve());
         EC_POINT_mul(w1->get_curve(), message_p3->C3, NULL, message_p3->A_, kq, ctx);
@@ -780,17 +772,12 @@ public:
         BIGNUM **c = new BIGNUM *[user_count_advertiser];
         // 设置 Q'=0
         message_p3_->Q_ = EC_POINT_new(w1->get_curve());
-        // 保存向量J
-        message_p3_->J = new EC_POINT *[user_count_platform];
 // 并行化
 #pragma omp parallel for
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
             b[j] = BN_rand(256);
-            // 计算 Jj = k2*Qj
-            message_p3_->J[j] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), message_p3_->J[j], NULL, message_a2->Q[j], k2, temp_ctx);
             // 计算 Q' = Q' + bj*Qj
             EC_POINT *temp = EC_POINT_new(w1->get_curve());
             EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->Q[j], b[j], temp_ctx);
@@ -837,9 +824,9 @@ public:
         //初始化xi_hat_以及yi_hat_
         message_p3_->x_hat_ = new BIGNUM *[user_count_advertiser];
         message_p3_->y_hat_ = new BIGNUM *[user_count_advertiser];
-        // 计算 kq = k3*k2
+        // 计算 kq = k2
         BIGNUM *kq = BN_new();
-        BN_mod_mul(kq, k3, k2, w1->get_order(), ctx);
+        BN_copy(kq,k2);
 
         //选择一个包含从1到n所有整数的数组π，并将其顺序shuffle,最后打乱
         int *_pi = new int[user_count_advertiser];
@@ -848,7 +835,7 @@ public:
         {
             BN_CTX* temp_ctx = BN_CTX_new();
             _pi[i]= i+1;
-            // 计算 Li = k3*k2*Ai =kq*Ai 
+            // 计算 Li = k2*Ai =kq*Ai 
             message_p3_->L[i] = EC_POINT_new(w1->get_curve());
             EC_POINT_mul(w1->get_curve(), message_p3_->L[i],NULL,message_a2->A[i],kq,temp_ctx);
             //std::cout<<i<<"   "<<EC_POINT_to_string(w1->get_curve(),message_p3_->L[i],ctx)<<std::endl;

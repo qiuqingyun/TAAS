@@ -23,6 +23,7 @@ int main(int argc, char *argv[])
 
     test_verify_(user_count_advertiser);
     test_verify(user_count_advertiser);
+
     return 0;
 }
 

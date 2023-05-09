@@ -668,7 +668,6 @@ class Message_P3
 public:
     int user_count_advertiser;
     int user_count_platform;
-    EC_POINT **J = nullptr;
     EC_POINT **L = nullptr;
     BIGNUM *k2_hat = nullptr;
     EC_POINT *C2 = nullptr;
@@ -686,13 +685,7 @@ public:
     {
         user_count_advertiser = message->user_count_advertiser;
         user_count_platform = message->user_count_platform;
-        J = new EC_POINT *[user_count_platform];
         L = new EC_POINT *[user_count_advertiser];
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            J[j] = EC_POINT_new(curve);
-            EC_POINT_copy(J[j], message->J[j]);
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {
             L[i] = EC_POINT_new(curve);
@@ -721,12 +714,7 @@ public:
         this->user_count_platform = user_count_platform;
         Messages::Msg_P3 msg_p3;
         msg_p3.ParseFromString(message);
-        J = new EC_POINT *[user_count_platform];
         L = new EC_POINT *[user_count_advertiser];
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            J[j] = EC_POINT_deserialize(curve, msg_p3.j(j), ctx);
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {
             L[i] = EC_POINT_deserialize(curve, msg_p3.l(i), ctx);
@@ -744,19 +732,6 @@ public:
     // 释放内存
     ~Message_P3()
     {
-        if (J != nullptr)
-        {
-            for (int j = 0; j < user_count_platform; j++)
-            {
-                if (J[j] != nullptr)
-                {
-                    EC_POINT_free(J[j]);
-                    J[j] = nullptr;
-                }
-            }
-            delete[] J;
-            J = nullptr;
-        }
         if (L != nullptr)
         {
             for (int i = 0; i < user_count_advertiser; i++)
@@ -817,10 +792,6 @@ public:
     {
         BN_CTX_start(ctx);
         size_t size = 0;
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            size += EC_POINT_point2oct(curve, J[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {
             size += EC_POINT_point2oct(curve, L[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
@@ -843,10 +814,6 @@ public:
         BN_CTX_start(ctx);
         std::string output;
         Messages::Msg_P3 msg_p3;
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            msg_p3.add_j(EC_POINT_serialize(curve, J[j], ctx));
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {
             msg_p3.add_l(EC_POINT_serialize(curve, L[i], ctx));
@@ -870,7 +837,6 @@ class Message_P3_
 public:
     int user_count_advertiser;
     int user_count_platform;
-    EC_POINT **J = nullptr;
     EC_POINT **L = nullptr;
     BIGNUM *k2_hat = nullptr;
     BIGNUM *sk_p_hat = nullptr;
@@ -906,7 +872,6 @@ public:
         V_ = new ElGamal_ciphertext *[user_count_advertiser];
         Ct = new ElGamal_ciphertext *[user_count_advertiser];
         Ct_ = new ElGamal_ciphertext *[user_count_advertiser];
-        J = new EC_POINT *[user_count_platform];
         L = new EC_POINT *[user_count_advertiser];
         Ct1_ = new EC_POINT *[user_count_advertiser];
         Ct2_ = new EC_POINT *[user_count_advertiser];
@@ -915,11 +880,6 @@ public:
         CD__ = new EC_POINT *[user_count_advertiser];
         x_hat_ = new BIGNUM * [user_count_advertiser];
         y_hat_ = new BIGNUM * [user_count_advertiser];
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            J[j] = EC_POINT_new(curve);
-            EC_POINT_copy(J[j], message->J[j]);
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {
             V_[i] = new ElGamal_ciphertext(curve, message->V_[i]);
@@ -972,7 +932,6 @@ public:
         this->user_count_platform = user_count_platform;
         Messages::Msg_P3_ msg_p3_;
         msg_p3_.ParseFromString(message);
-        J = new EC_POINT *[user_count_platform];
         L = new EC_POINT *[user_count_advertiser];
         Ct1_ = new EC_POINT *[user_count_advertiser];
         Ct2_ = new EC_POINT *[user_count_advertiser];
@@ -984,10 +943,6 @@ public:
         Ct_ = new ElGamal_ciphertext *[user_count_advertiser];
         x_hat_ = new BIGNUM * [user_count_advertiser];
         y_hat_ = new BIGNUM * [user_count_advertiser];
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            J[j] = EC_POINT_deserialize(curve, msg_p3_.j(j), ctx);
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {   
             Ct[i] = new ElGamal_ciphertext(curve,msg_p3_.ct(i),ctx);
@@ -1021,19 +976,6 @@ public:
     // 释放内存
     ~Message_P3_()
     {
-        if (J != nullptr)
-        {
-            for (int j = 0; j < user_count_platform; j++)
-            {
-                if (J[j] != nullptr)
-                {
-                    EC_POINT_free(J[j]);
-                    J[j] = nullptr;
-                }
-            }
-            delete[] J;
-            J = nullptr;
-        }
         if (L != nullptr)
         {
             for (int i = 0; i < user_count_advertiser; i++)
@@ -1244,10 +1186,6 @@ public:
     {
         BN_CTX_start(ctx);
         size_t size = 0;
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            size += EC_POINT_point2oct(curve, J[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {   
             size += V_[i]->get_size(curve, ctx);
@@ -1284,10 +1222,6 @@ public:
         BN_CTX_start(ctx);
         std::string output;
         Messages::Msg_P3_ msg_p3_;
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            msg_p3_.add_j(EC_POINT_serialize(curve, J[j], ctx));
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {
             msg_p3_.add_l(EC_POINT_serialize(curve, L[i], ctx));
