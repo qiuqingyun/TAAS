@@ -668,9 +668,9 @@ public:
     int user_count_advertiser;
     int user_count_platform;
     EC_POINT **L = nullptr;
-    BIGNUM *k2_hat = nullptr;
-    EC_POINT *C2 = nullptr;
-    EC_POINT *C2_ = nullptr;
+    //BIGNUM *k2_hat = nullptr;
+    //EC_POINT *C2 = nullptr;
+    //EC_POINT *C2_ = nullptr;
     EC_POINT *C3 = nullptr;
     EC_POINT *C3_ = nullptr;
     BIGNUM *kq_hat = nullptr;
@@ -690,16 +690,16 @@ public:
             L[i] = EC_POINT_new(curve);
             EC_POINT_copy(L[i], message->L[i]);
         }
-        k2_hat = BN_dup(message->k2_hat);
-        C2 = EC_POINT_new(curve);
-        C2_ = EC_POINT_new(curve);
+        // k2_hat = BN_dup(message->k2_hat);
+        // C2 = EC_POINT_new(curve);
+        // C2_ = EC_POINT_new(curve);
         C3 = EC_POINT_new(curve);
         C3_ = EC_POINT_new(curve);
         kq_hat = BN_dup(message->kq_hat);
         Q_ = EC_POINT_new(curve);
         A_ = EC_POINT_new(curve);
-        EC_POINT_copy(C2, message->C2);
-        EC_POINT_copy(C2_, message->C2_);
+        // EC_POINT_copy(C2, message->C2);
+        // EC_POINT_copy(C2_, message->C2_);
         EC_POINT_copy(C3, message->C3);
         EC_POINT_copy(C3_, message->C3_);
         EC_POINT_copy(Q_, message->Q_);
@@ -718,9 +718,9 @@ public:
         {
             L[i] = EC_POINT_deserialize(curve, msg_p3.l(i), ctx);
         }
-        k2_hat = BN_deserialize(msg_p3.k2_hat());
-        C2 = EC_POINT_deserialize(curve, msg_p3.c2(), ctx);
-        C2_ = EC_POINT_deserialize(curve, msg_p3.c2_prime(), ctx);
+        // k2_hat = BN_deserialize(msg_p3.k2_hat());
+        // C2 = EC_POINT_deserialize(curve, msg_p3.c2(), ctx);
+        // C2_ = EC_POINT_deserialize(curve, msg_p3.c2_prime(), ctx);
         C3 = EC_POINT_deserialize(curve, msg_p3.c3(), ctx);
         C3_ = EC_POINT_deserialize(curve, msg_p3.c3_prime(), ctx);
         kq_hat = BN_deserialize(msg_p3.kq_hat());
@@ -744,21 +744,21 @@ public:
             delete[] L;
             L = nullptr;
         }
-        if (k2_hat != nullptr)
-        {
-            BN_free(k2_hat);
-            k2_hat = nullptr;
-        }
-        if (C2 != nullptr)
-        {
-            EC_POINT_free(C2);
-            C2 = nullptr;
-        }
-        if (C2_ != nullptr)
-        {
-            EC_POINT_free(C2_);
-            C2_ = nullptr;
-        }
+        // if (k2_hat != nullptr)
+        // {
+        //     BN_free(k2_hat);
+        //     k2_hat = nullptr;
+        // }
+        // if (C2 != nullptr)
+        // {
+        //     EC_POINT_free(C2);
+        //     C2 = nullptr;
+        // }
+        // if (C2_ != nullptr)
+        // {
+        //     EC_POINT_free(C2_);
+        //     C2_ = nullptr;
+        // }
         if (C3 != nullptr)
         {
             EC_POINT_free(C3);
@@ -795,9 +795,9 @@ public:
         {
             size += EC_POINT_point2oct(curve, L[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         }
-        size += BN_bn2mpi(k2_hat, NULL);
-        size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        // size += BN_bn2mpi(k2_hat, NULL);
+        // size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        // size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += EC_POINT_point2oct(curve, C3, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += EC_POINT_point2oct(curve, C3_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += BN_bn2mpi(kq_hat, NULL);
@@ -817,9 +817,9 @@ public:
         {
             msg_p3.add_l(EC_POINT_serialize(curve, L[i], ctx));
         }
-        msg_p3.set_k2_hat(BN_serialize(k2_hat));
-        msg_p3.set_c2(EC_POINT_serialize(curve, C2, ctx));
-        msg_p3.set_c2_prime(EC_POINT_serialize(curve, C2_, ctx));
+        // msg_p3.set_k2_hat(BN_serialize(k2_hat));
+        // msg_p3.set_c2(EC_POINT_serialize(curve, C2, ctx));
+        // msg_p3.set_c2_prime(EC_POINT_serialize(curve, C2_, ctx));
         msg_p3.set_c3(EC_POINT_serialize(curve, C3, ctx));
         msg_p3.set_c3_prime(EC_POINT_serialize(curve, C3_, ctx));
         msg_p3.set_kq_hat(BN_serialize(kq_hat));
@@ -837,10 +837,10 @@ public:
     int user_count_advertiser;
     int user_count_platform;
     EC_POINT **L = nullptr;
-    BIGNUM *k2_hat = nullptr;
+    //BIGNUM *k2_hat = nullptr;
     BIGNUM *sk_p_hat = nullptr;
-    EC_POINT *C2 = nullptr;
-    EC_POINT *C2_ = nullptr;
+    //EC_POINT *C2 = nullptr;
+    //EC_POINT *C2_ = nullptr;
     EC_POINT **Ct1_ = nullptr;
     EC_POINT **Ct2_ = nullptr;
     BIGNUM **x_hat_ = nullptr;
@@ -904,19 +904,19 @@ public:
         F_ = new ElGamal_ciphertext(curve, message->F_);
         F__ = new ElGamal_ciphertext(curve, message->F__);
 
-        k2_hat = BN_dup(message->k2_hat);
+        //k2_hat = BN_dup(message->k2_hat);
         sk_p_hat = BN_dup(message->sk_p_hat);
         E_ = BN_dup(message->E_);
 
-        C2 = EC_POINT_new(curve);
-        C2_ = EC_POINT_new(curve);
+        //C2 = EC_POINT_new(curve);
+        //C2_ = EC_POINT_new(curve);
         Q_ = EC_POINT_new(curve);
         GSP = EC_POINT_new(curve);
         GSP_ = EC_POINT_new(curve);
         pk_p = EC_POINT_new(curve);
         pk_p_ = EC_POINT_new(curve);
-        EC_POINT_copy(C2, message->C2);
-        EC_POINT_copy(C2_, message->C2_);
+        //EC_POINT_copy(C2, message->C2);
+        //EC_POINT_copy(C2_, message->C2_);
         EC_POINT_copy(Q_, message->Q_);
         EC_POINT_copy(GSP, message->GSP);
         EC_POINT_copy(GSP_, message->GSP_);
@@ -960,11 +960,11 @@ public:
         F_ = new ElGamal_ciphertext(curve, msg_p3_.f_(),ctx);
         F__ = new ElGamal_ciphertext(curve, msg_p3_.f_prime_(),ctx);
 
-        k2_hat = BN_deserialize(msg_p3_.k2_hat());
+        //k2_hat = BN_deserialize(msg_p3_.k2_hat());
         sk_p_hat = BN_deserialize(msg_p3_.sk_p_hat());
         E_ = BN_deserialize(msg_p3_.e_());
-        C2 = EC_POINT_deserialize(curve, msg_p3_.c2(), ctx);
-        C2_ = EC_POINT_deserialize(curve, msg_p3_.c2_prime(), ctx);
+        //C2 = EC_POINT_deserialize(curve, msg_p3_.c2(), ctx);
+        //C2_ = EC_POINT_deserialize(curve, msg_p3_.c2_prime(), ctx);
         Q_ = EC_POINT_deserialize(curve, msg_p3_.q_prime(), ctx);
         GSP = EC_POINT_deserialize(curve, msg_p3_.gsp(), ctx);
         GSP_ = EC_POINT_deserialize(curve, msg_p3_.gsp_prime(), ctx);
@@ -1128,11 +1128,11 @@ public:
             delete F__;
             F__ = nullptr;
         }
-        if (k2_hat != nullptr)
-        {
-            BN_free(k2_hat);
-            k2_hat = nullptr;
-        }
+        // if (k2_hat != nullptr)
+        // {
+        //     BN_free(k2_hat);
+        //     k2_hat = nullptr;
+        // }
         if (sk_p_hat != nullptr)
         {
             BN_free(sk_p_hat);
@@ -1143,16 +1143,16 @@ public:
             BN_free(E_);
             E_ = nullptr;
         }
-        if (C2 != nullptr)
-        {
-            EC_POINT_free(C2);
-            C2 = nullptr;
-        }
-        if (C2_ != nullptr)
-        {
-            EC_POINT_free(C2_);
-            C2_ = nullptr;
-        }
+        // if (C2 != nullptr)
+        // {
+        //     EC_POINT_free(C2);
+        //     C2 = nullptr;
+        // }
+        // if (C2_ != nullptr)
+        // {
+        //     EC_POINT_free(C2_);
+        //     C2_ = nullptr;
+        // }
         if (Q_ != nullptr)
         {
             EC_POINT_free(Q_);
@@ -1201,11 +1201,11 @@ public:
         }
         size += F_->get_size(curve, ctx);
         size += F__->get_size(curve, ctx);
-        size += BN_bn2mpi(k2_hat, NULL);
+        //size += BN_bn2mpi(k2_hat, NULL);
         size += BN_bn2mpi(sk_p_hat, NULL);
         size += BN_bn2mpi(E_, NULL);
-        size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        //size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        //size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += EC_POINT_point2oct(curve, Q_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += EC_POINT_point2oct(curve, GSP, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += EC_POINT_point2oct(curve, GSP_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
@@ -1237,11 +1237,11 @@ public:
         }
         F_->insert(curve, msg_p3_.mutable_f_(), ctx);
         F__->insert(curve, msg_p3_.mutable_f_prime_(), ctx);
-        msg_p3_.set_k2_hat(BN_serialize(k2_hat));
+        //msg_p3_.set_k2_hat(BN_serialize(k2_hat));
         msg_p3_.set_e_(BN_serialize(E_));
         msg_p3_.set_sk_p_hat(BN_serialize(sk_p_hat));
-        msg_p3_.set_c2(EC_POINT_serialize(curve, C2, ctx));
-        msg_p3_.set_c2_prime(EC_POINT_serialize(curve, C2_, ctx));
+        //msg_p3_.set_c2(EC_POINT_serialize(curve, C2, ctx));
+        //msg_p3_.set_c2_prime(EC_POINT_serialize(curve, C2_, ctx));
         msg_p3_.set_q_prime(EC_POINT_serialize(curve, Q_, ctx));
         msg_p3_.set_gsp(EC_POINT_serialize(curve, GSP, ctx));
         msg_p3_.set_gsp_prime(EC_POINT_serialize(curve, GSP_, ctx));

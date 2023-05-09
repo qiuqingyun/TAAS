@@ -96,9 +96,9 @@ message Msg_P3{
     // EC_POINT *Q_ = nullptr;
     // EC_POINT *A_ = nullptr;
     repeated bytes L = 2;
-    bytes k2_hat = 3;
-    bytes C2 = 4;
-    bytes C2_prime = 5;
+    //bytes k2_hat = 3;
+    //bytes C2 = 4;
+    //bytes C2_prime = 5;
     bytes C3 = 6;
     bytes C3_prime = 7;
     bytes kq_hat = 8;
@@ -133,10 +133,10 @@ message Msg_P3_{
     // ElGamal_ciphertext **V_ = nullptr;
 
     repeated bytes L = 2;
-    bytes k2_hat = 3;
+    //bytes k2_hat = 3;
     bytes sk_p_hat = 4;
-    bytes C2 = 5;
-    bytes C2_prime = 6;
+    //bytes C2 = 5;
+    //bytes C2_prime = 6;
     repeated bytes Ct1_ = 7;
     repeated bytes Ct2_ = 8;
     repeated bytes x_hat_ = 9;

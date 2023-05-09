@@ -496,20 +496,6 @@ public:
             EC_POINT_free(temp);
             BN_CTX_free(temp_ctx);
         }
-        // 计算 C2 = k2*Q'
-        message_p3->C2 = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), message_p3->C2, NULL, message_p3->Q_, k2, ctx);
-        // 计算 C2' = k2'*Q'
-        message_p3->C2_ = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), message_p3->C2_, NULL, message_p3->Q_, k2_, ctx);
-        // 计算哈希值 tq = H(W_1||C2')
-        BIGNUM *tq = BN_hash(
-            w1->to_string(ctx),
-            EC_POINT_to_string(w1->get_curve(), message_p3->C2_, ctx));
-        // 计算 k2_hat = tq*k2 + k2'
-        message_p3->k2_hat = BN_new();
-        BN_mod_mul(message_p3->k2_hat, tq, k2, w1->get_order(), ctx);
-        BN_mod_add(message_p3->k2_hat, message_p3->k2_hat, k2_, w1->get_order(), ctx);
         // 设置 A'=0
         message_p3->A_ = EC_POINT_new(w1->get_curve());
         // 保存向量L
@@ -565,7 +551,6 @@ public:
             BN_free(c[j]);
         }
         delete[] c;
-        BN_free(tq);
         BN_free(kq);
         BN_free(ta);
         BN_CTX_end(ctx);
@@ -789,22 +774,6 @@ public:
             EC_POINT_free(temp);
             BN_CTX_free(temp_ctx);
         }
-        // 计算 C2 = k2*Q'
-        message_p3_->C2 = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), message_p3_->C2, NULL, message_p3_->Q_, k2, ctx);
-        // 计算 C2' = k2'*Q'
-        message_p3_->C2_ = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), message_p3_->C2_, NULL, message_p3_->Q_, k2_, ctx);
-        // 计算哈希值 tq = H(W_1||C2')
-        BIGNUM *tq = BN_hash(
-            w1->to_string(ctx),
-            EC_POINT_to_string(w1->get_curve(), message_p3_->C2_, ctx));
-        // 计算 k2_hat = tq*k2 + k2'
-        message_p3_->k2_hat = BN_new();
-        BN_mod_mul(message_p3_->k2_hat, tq, k2, w1->get_order(), ctx);
-        BN_mod_add(message_p3_->k2_hat, message_p3_->k2_hat, k2_, w1->get_order(), ctx);
-        BN_free(tq);
-
 
 
         /*开始与round_P3不同*/
