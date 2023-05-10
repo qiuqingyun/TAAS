@@ -32,7 +32,6 @@ int test_verify(int user_count_advertiser)
     // 设置数量
     int user_count_platform = std::ceil(user_count_advertiser * 1.0);     // 广告平台的用户数量
     int user_count_intersection = std::ceil(user_count_advertiser * 0.8); // 交集用户数量
-
     // 初始化 OpenSSL
     OpenSSL_add_all_algorithms();
     BN_CTX *ctx = BN_CTX_new();
@@ -421,7 +420,6 @@ int test_verify_(int user_count_advertiser)
     auto end_platform_A1 = std::chrono::high_resolution_clock::now();                                                       // 记录结束时间
     auto duration_platform_A1 = std::chrono::duration_cast<std::chrono::microseconds>(end_platform_A1 - start_platform_A1); // 计算运行时间
     std::string message_p1 = platform.get_message_p1(ctx);
-
     // A2轮
     advertiser.set_message_p1(message_p1, ctx);
     auto start_advertiser_A2 = std::chrono::high_resolution_clock::now(); // 记录开始时间

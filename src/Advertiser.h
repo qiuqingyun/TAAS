@@ -318,7 +318,7 @@ public:
         // 保存密文C
         message_a2->C = new ElGamal_ciphertext *[user_count_platform];
         // 保存向量A
-        message_a2->A = new EC_POINT *[user_count_advertiser];
+        //message_a2->A = new EC_POINT *[user_count_advertiser];
         // 保存向量C1_
         message_a2->C1_ = new EC_POINT *[user_count_advertiser];
         // 保存向量C2_
@@ -327,13 +327,7 @@ public:
         message_a2->x_hat = new BIGNUM *[user_count_advertiser];
         // 保存向量y_hat
         message_a2->y_hat = new BIGNUM *[user_count_advertiser];
-// 并行化
-#pragma omp parallel for
-        for (int i = 0; i < user_count_advertiser; ++i)
-        {
-            message_a2->A[i] = EC_POINT_new(w1->get_curve());
-            EC_POINT_copy(message_a2->A[i], A[i]);
-        }
+
 // 并行化
 #pragma omp parallel for
         for (int j = 0; j < user_count_platform; ++j)
@@ -716,6 +710,11 @@ public:
         message_a4->skA_hat_ = BN_new();
         BN_mod_mul(message_a4->skA_hat_, tb, skA, w1->get_order(), ctx);
         BN_mod_add(message_a4->skA_hat_, message_a4->skA_hat_, skA__, w1->get_order(), ctx);
+
+        // std::cout<<EC_POINT_point2oct(w1->get_curve(), A[0], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx)<<std::endl;
+        // std::cout<<message_a4->Sum_E->get_size(w1->get_curve(), ctx)<<std::endl;
+
+
         // 释放内存L_A,X,Y,intersection,Sum_E,skA__,tb
         delete L_A;
         delete[] X;
@@ -735,7 +734,6 @@ public:
         message_a4_ = new Message_A4_();
         // 验证上一轮的计算
         {
-            // 验证 k2_hat*Q' = tq*C2 + C2'
             EC_POINT *left = EC_POINT_new(w1->get_curve());
             EC_POINT *right = EC_POINT_new(w1->get_curve());
             bool result_Ai = true;
@@ -754,7 +752,7 @@ public:
                 );
                 EC_POINT *tempt = EC_POINT_new(w1->get_curve());
                 //加密验证：x_hat_[i]*Ai + y_hat_[i]*pk_p = s_[i]*Ct1[i]+Ct1_[i]
-                EC_POINT_mul(w1->get_curve(),left1,NULL,message_a2->A[i],message_p3_->x_hat_[i],temp_ctx);
+                EC_POINT_mul(w1->get_curve(),left1,NULL,A[i],message_p3_->x_hat_[i],temp_ctx);
                 EC_POINT_mul(w1->get_curve(),tempt,NULL,message_p3_->pk_p,message_p3_->y_hat_[i],temp_ctx);
 #pragma omp critical
                 EC_POINT_add(w1->get_curve(),left1,left1,tempt,temp_ctx);
@@ -917,7 +915,6 @@ public:
                 EC_POINT_to_string(w1->get_curve(),message_p3_->GSP_,ctx),
                 EC_POINT_to_string(w1->get_curve(),message_p3_->pk_p_,ctx)
             );
-            //std::cout<<"tp"<<BN_to_string(tp_h)<<std::endl;
             //验证sk_p_hat*G2 = tp*GSP+GSP'
             EC_POINT_mul(w1->get_curve(), left, w1->get_order(), w1->get_G2(), message_p3_->sk_p_hat, ctx);
             EC_POINT_mul(w1->get_curve(), right, w1->get_order(), message_p3_->GSP, tp_h, ctx);
