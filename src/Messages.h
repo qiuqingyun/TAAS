@@ -297,7 +297,7 @@ public:
     EC_POINT **CA = nullptr;
     EC_POINT **CB = nullptr;
     EC_POINT **CD_ = nullptr;
-    EC_POINT **A = nullptr;
+    //EC_POINT **A = nullptr;
     BIGNUM *E = nullptr;
     ElGamal_ciphertext *F = nullptr;
     EC_POINT **Q = nullptr;
@@ -322,7 +322,7 @@ public:
         CA = new EC_POINT *[user_count_platform];
         CB = new EC_POINT *[user_count_platform];
         CD_ = new EC_POINT *[user_count_platform];
-        A = new EC_POINT *[user_count_advertiser];
+        //A = new EC_POINT *[user_count_advertiser];
         Q = new EC_POINT *[user_count_platform];
         for (int i = 0; i < user_count_platform; i++)
         {
@@ -337,11 +337,11 @@ public:
             EC_POINT_copy(CD_[i], message->CD_[i]);
             EC_POINT_copy(Q[i], message->Q[i]);
         }
-        for (int i = 0; i < user_count_advertiser; i++)
-        {
-            A[i] = EC_POINT_new(curve);
-            EC_POINT_copy(A[i], message->A[i]);
-        }
+        // for (int i = 0; i < user_count_advertiser; i++)
+        // {
+        //     A[i] = EC_POINT_new(curve);
+        //     EC_POINT_copy(A[i], message->A[i]);
+        // }
         E = BN_dup(message->E);
         F = new ElGamal_ciphertext(curve, message->F);
         GS_ = EC_POINT_new(curve);
@@ -378,7 +378,7 @@ public:
         CA = new EC_POINT *[user_count_platform];
         CB = new EC_POINT *[user_count_platform];
         CD_ = new EC_POINT *[user_count_platform];
-        A = new EC_POINT *[user_count_advertiser];
+        //A = new EC_POINT *[user_count_advertiser];
         Q = new EC_POINT *[user_count_platform];
         C1_ = new EC_POINT *[user_count_platform];
         C2_ = new EC_POINT *[user_count_platform];
@@ -397,10 +397,10 @@ public:
             x_hat[i] = BN_deserialize(msg_a2.x_hat(i));
             y_hat[i] = BN_deserialize(msg_a2.y_hat(i));
         }
-        for (int i = 0; i < user_count_advertiser; i++)
-        {
-            A[i] = EC_POINT_deserialize(curve, msg_a2.a(i), ctx);
-        }
+        // for (int i = 0; i < user_count_advertiser; i++)
+        // {
+        //     A[i] = EC_POINT_deserialize(curve, msg_a2.a(i), ctx);
+        // }
         E = BN_deserialize(msg_a2.e());
         F = new ElGamal_ciphertext(curve, msg_a2.f(), ctx);
         GS_ = EC_POINT_deserialize(curve, msg_a2.gs_prime(), ctx);
@@ -477,19 +477,19 @@ public:
             delete[] CD_;
             CD_ = nullptr;
         }
-        if (A != nullptr)
-        {
-            for (int i = 0; i < user_count_advertiser; i++)
-            {
-                if (A[i] != nullptr)
-                {
-                    EC_POINT_free(A[i]);
-                    A[i] = nullptr;
-                }
-            }
-            delete[] A;
-            A = nullptr;
-        }
+        // if (A != nullptr)
+        // {
+        //     for (int i = 0; i < user_count_advertiser; i++)
+        //     {
+        //         if (A[i] != nullptr)
+        //         {
+        //             EC_POINT_free(A[i]);
+        //             A[i] = nullptr;
+        //         }
+        //     }
+        //     delete[] A;
+        //     A = nullptr;
+        // }
         if (E != nullptr)
         {
             BN_free(E);
@@ -609,10 +609,10 @@ public:
             size += EC_POINT_point2oct(curve, CD_[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
             size += EC_POINT_point2oct(curve, Q[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
         }
-        for (int i = 0; i < user_count_advertiser; i++)
-        {
-            size += EC_POINT_point2oct(curve, A[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        }
+        // for (int i = 0; i < user_count_advertiser; i++)
+        // {
+        //     size += EC_POINT_point2oct(curve, A[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        // }
         // 计算C_1,C_2,x_hat,y_hat的字节数
         for (int j = 0; j < user_count_platform; j++)
         {
@@ -645,10 +645,10 @@ public:
             msg_a2.add_x_hat(BN_serialize(x_hat[j]));
             msg_a2.add_y_hat(BN_serialize(y_hat[j]));
         }
-        for (int i = 0; i < user_count_advertiser; i++)
-        {
-            msg_a2.add_a(EC_POINT_serialize(curve, A[i], ctx));
-        }
+        // for (int i = 0; i < user_count_advertiser; i++)
+        // {
+        //     msg_a2.add_a(EC_POINT_serialize(curve, A[i], ctx));
+        // }
         msg_a2.set_e(BN_serialize(E));
         F->insert(curve, msg_a2.mutable_f(), ctx);
         msg_a2.set_gs(EC_POINT_serialize(curve, GS, ctx));

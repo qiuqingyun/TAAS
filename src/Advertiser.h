@@ -317,8 +317,7 @@ public:
         int *pi = new int[user_count_platform];
         // 保存密文C
         message_a2->C = new ElGamal_ciphertext *[user_count_platform];
-        // 保存向量A
-        message_a2->A = new EC_POINT *[user_count_advertiser];
+
         // 保存向量C1_
         message_a2->C1_ = new EC_POINT *[user_count_advertiser];
         // 保存向量C2_
@@ -327,13 +326,6 @@ public:
         message_a2->x_hat = new BIGNUM *[user_count_advertiser];
         // 保存向量y_hat
         message_a2->y_hat = new BIGNUM *[user_count_advertiser];
-// 并行化
-#pragma omp parallel for
-        for (int i = 0; i < user_count_advertiser; ++i)
-        {
-            message_a2->A[i] = EC_POINT_new(w1->get_curve());
-            EC_POINT_copy(message_a2->A[i], A[i]);
-        }
 // 并行化
 #pragma omp parallel for
         for (int j = 0; j < user_count_platform; ++j)
@@ -783,7 +775,7 @@ public:
                 );
                 EC_POINT *tempt = EC_POINT_new(w1->get_curve());
                 //加密验证：x_hat_[i]*Ai + y_hat_[i]*pk_p = s_[i]*Ct1[i]+Ct1_[i]
-                EC_POINT_mul(w1->get_curve(),left1,NULL,message_a2->A[i],message_p3_->x_hat_[i],temp_ctx);
+                EC_POINT_mul(w1->get_curve(),left1,NULL,A[i],message_p3_->x_hat_[i],temp_ctx);
                 EC_POINT_mul(w1->get_curve(),tempt,NULL,message_p3_->pk_p,message_p3_->y_hat_[i],temp_ctx);
 #pragma omp critical
                 EC_POINT_add(w1->get_curve(),left1,left1,tempt,temp_ctx);

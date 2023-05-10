@@ -26,6 +26,7 @@ class Platform
     BIGNUM *k3 = BN_rand(256);
     ElGamal_ciphertext **V;
     EC_POINT **P = nullptr;
+     EC_POINT **A = nullptr;
 
 public:
     // 构造函数
@@ -60,6 +61,14 @@ public:
             EC_POINT_free(P[j]);
         }
         delete[] P;
+        if (A != nullptr)
+        {
+            for (int i = 0; i < user_count_advertiser; i++)
+            {
+                EC_POINT_free(A[i]);
+            }
+            delete[] A;
+        }
     }
 
     // 验证证明
@@ -113,6 +122,7 @@ public:
             proof->U[i] = EC_POINT_new(w1->get_curve());
         }
         V = new ElGamal_ciphertext *[user_count_advertiser];
+        A = new EC_POINT *[user_count_advertiser];
 #pragma omp parallel for
         for (int i = 0; i < user_count_advertiser; i++)
         {
@@ -128,7 +138,9 @@ public:
             EC_POINT_mul(w1->get_curve(), temp_Ui1, NULL, w1->get_G0(), u[i], temp_ctx);
             EC_POINT_mul(w1->get_curve(), temp_Ui2, NULL, w1->get_H0(), r[i], temp_ctx);
             EC_POINT_add(w1->get_curve(), proof->U[i], temp_Ui1, temp_Ui2, temp_ctx);
-
+            
+            A[i] = EC_POINT_new(w1->get_curve());
+            EC_POINT_copy(A[i], proof->A[i]);
 
             // 利用 Ui 从 U_Evidence 中找到对应的证据Vi
             std::string temp_str_ui = EC_POINT_to_string(w1->get_curve(), proof->U[i], temp_ctx);
@@ -530,11 +542,11 @@ public:
             c[i] = BN_rand(256);
             // 计算 Li = k3*k2*Ai
             message_p3->L[i] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), message_p3->L[i], NULL, message_a2->A[i], k3, temp_ctx);
+            EC_POINT_mul(w1->get_curve(), message_p3->L[i], NULL, A[i], k3, temp_ctx);
             EC_POINT_mul(w1->get_curve(), message_p3->L[i], NULL, message_p3->L[i], k2, temp_ctx);
             // 计算 A' = A' + ci*Ai
             EC_POINT *temp = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->A[i], c[i], temp_ctx);
+            EC_POINT_mul(w1->get_curve(), temp, NULL, A[i], c[i], temp_ctx);
 // 线程安全
 #pragma omp critical
             // 累加 A'
@@ -850,7 +862,7 @@ public:
             _pi[i]= i+1;
             // 计算 Li = k3*k2*Ai =kq*Ai 
             message_p3_->L[i] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), message_p3_->L[i],NULL,message_a2->A[i],kq,temp_ctx);
+            EC_POINT_mul(w1->get_curve(), message_p3_->L[i],NULL,A[i],kq,temp_ctx);
             //std::cout<<i<<"   "<<EC_POINT_to_string(w1->get_curve(),message_p3_->L[i],ctx)<<std::endl;
             //计算Ct
             message_p3_->Ct[i] = new ElGamal_ciphertext(w1->get_curve());
@@ -875,7 +887,7 @@ public:
             message_p3_->Ct1_[i] = EC_POINT_new(w1->get_curve());
             message_p3_->Ct2_[i] = EC_POINT_new(w1->get_curve());
             //Ct1i_ = xi__*Ai + yi__*pk_p
-            EC_POINT_mul(w1->get_curve(),temp_ec, NULL,message_a2->A[i],xi__,temp_ctx);
+            EC_POINT_mul(w1->get_curve(),temp_ec, NULL,A[i],xi__,temp_ctx);
             EC_POINT_mul(w1->get_curve(),message_p3_->Ct1_[i], NULL,message_p3_->pk_p,yi__,temp_ctx);
             EC_POINT_add(w1->get_curve(),message_p3_->Ct1_[i],message_p3_->Ct1_[i],temp_ec,temp_ctx);
             //Ct2i = yi__*Ha
