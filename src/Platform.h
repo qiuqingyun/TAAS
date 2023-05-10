@@ -480,44 +480,6 @@ public:
         // 选择n个随机数{c1,c2,...,cn}
         BIGNUM **c = new BIGNUM *[user_count_advertiser];
         // 设置 Q'=0
-        message_p3->Q_ = EC_POINT_new(w1->get_curve());
-        // 保存向量J
-        message_p3->J = new EC_POINT *[user_count_platform];
-// 并行化
-#pragma omp parallel for
-        for (int j = 0; j < user_count_platform; ++j)
-        {
-            BN_CTX *temp_ctx = BN_CTX_new();
-            b[j] = BN_rand(256);
-            // 计算 Jj = k2*Qj
-            message_p3->J[j] = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), message_p3->J[j], NULL, message_a2->Q[j], k2, temp_ctx);
-
-            // 计算 Q' = Q' + bj*Qj
-            EC_POINT *temp = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->Q[j], b[j], temp_ctx);
-// 线程安全
-#pragma omp critical
-            // 累加 Q'
-            EC_POINT_add(w1->get_curve(), message_p3->Q_, message_p3->Q_, temp, temp_ctx);
-            // 释放内存
-            EC_POINT_free(temp);
-            BN_CTX_free(temp_ctx);
-        }
-        // 计算 C2 = k2*Q'
-        message_p3->C2 = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), message_p3->C2, NULL, message_p3->Q_, k2, ctx);
-        // 计算 C2' = k2'*Q'
-        message_p3->C2_ = EC_POINT_new(w1->get_curve());
-        EC_POINT_mul(w1->get_curve(), message_p3->C2_, NULL, message_p3->Q_, k2_, ctx);
-        // 计算哈希值 tq = H(W_1||C2')
-        BIGNUM *tq = BN_hash(
-            w1->to_string(ctx),
-            EC_POINT_to_string(w1->get_curve(), message_p3->C2_, ctx));
-        // 计算 k2_hat = tq*k2 + k2'
-        message_p3->k2_hat = BN_new();
-        BN_mod_mul(message_p3->k2_hat, tq, k2, w1->get_order(), ctx);
-        BN_mod_add(message_p3->k2_hat, message_p3->k2_hat, k2_, w1->get_order(), ctx);
         // 设置 A'=0
         message_p3->A_ = EC_POINT_new(w1->get_curve());
         // 保存向量L

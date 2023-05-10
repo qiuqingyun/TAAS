@@ -130,18 +130,18 @@ public:
         BN_CTX_start(ctx);
         size_t size = 0;
         // 计算*W, *W_, *C1, *C1_, *U_, *A_, *D_, **U, **A, **D的字节数
-        size += EC_POINT_point2oct(curve, W, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, W_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C1, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C1_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, U_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, A_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, D_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, W, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, W_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C1, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C1_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, U_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, A_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, D_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         for (int i = 0; i < user_count_advertiser; i++)
         {
-            size += EC_POINT_point2oct(curve, U[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, A[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, D[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, U[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, A[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, D[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         }
         // 计算k_hat, x_hat, y_hat的字节数
         size += BN_num_bytes(k_hat);
@@ -223,7 +223,6 @@ public:
         Z_hat = BN_deserialize(msg_p1.z_hat());
         BN_CTX_end(ctx);
     }
-
     // 释放内存
     ~Message_P1()
     {
@@ -257,10 +256,10 @@ public:
     {
         BN_CTX_start(ctx);
         size_t size = 0;
-        size += EC_POINT_point2oct(curve, P_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, P_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         for (int i = 0; i < user_count_platform; i++)
         {
-            size += EC_POINT_point2oct(curve, P[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, P[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         }
         size += BN_num_bytes(Z_hat);
         BN_CTX_end(ctx);
@@ -594,9 +593,9 @@ public:
         BN_CTX_start(ctx);
         size_t size = 0;
         // 计算C,C_,CA,CB,CD_,A,E,F,Q,GS_,GS,pkA_,skA_hat的字节数
-        size += EC_POINT_point2oct(curve, GS_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, GS, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, pkA_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GS_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GS, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, pkA_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += BN_bn2mpi(skA_hat, NULL);
         size += BN_bn2mpi(E, NULL);
         size += F->get_size(curve, ctx);
@@ -604,20 +603,20 @@ public:
         {
             size += C[j]->get_size(curve, ctx);
             size += C_[j]->get_size(curve, ctx);
-            size += EC_POINT_point2oct(curve, CA[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, CB[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, CD_[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, Q[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CA[j], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CB[j], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CD_[j], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, Q[j], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         }
         for (int i = 0; i < user_count_advertiser; i++)
         {
-            size += EC_POINT_point2oct(curve, A[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, A[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         }
         // 计算C_1,C_2,x_hat,y_hat的字节数
         for (int j = 0; j < user_count_platform; j++)
         {
-            size += EC_POINT_point2oct(curve, C1_[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, C2_[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, C1_[j], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, C2_[j], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
             size += BN_bn2mpi(x_hat[j], NULL);
             size += BN_bn2mpi(y_hat[j], NULL);
         }
@@ -668,15 +667,14 @@ class Message_P3
 public:
     int user_count_advertiser;
     int user_count_platform;
-    EC_POINT **J = nullptr;
     EC_POINT **L = nullptr;
-    BIGNUM *k2_hat = nullptr;
-    EC_POINT *C2 = nullptr;
-    EC_POINT *C2_ = nullptr;
+    //BIGNUM *k2_hat = nullptr;
+    //EC_POINT *C2 = nullptr;
+    //EC_POINT *C2_ = nullptr;
     EC_POINT *C3 = nullptr;
     EC_POINT *C3_ = nullptr;
     BIGNUM *kq_hat = nullptr;
-    EC_POINT *Q_ = nullptr;
+    //EC_POINT *Q_ = nullptr;
     EC_POINT *A_ = nullptr;
 
     Message_P3() {}
@@ -686,31 +684,25 @@ public:
     {
         user_count_advertiser = message->user_count_advertiser;
         user_count_platform = message->user_count_platform;
-        J = new EC_POINT *[user_count_platform];
         L = new EC_POINT *[user_count_advertiser];
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            J[j] = EC_POINT_new(curve);
-            EC_POINT_copy(J[j], message->J[j]);
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {
             L[i] = EC_POINT_new(curve);
             EC_POINT_copy(L[i], message->L[i]);
         }
-        k2_hat = BN_dup(message->k2_hat);
-        C2 = EC_POINT_new(curve);
-        C2_ = EC_POINT_new(curve);
+        // k2_hat = BN_dup(message->k2_hat);
+        // C2 = EC_POINT_new(curve);
+        // C2_ = EC_POINT_new(curve);
         C3 = EC_POINT_new(curve);
         C3_ = EC_POINT_new(curve);
         kq_hat = BN_dup(message->kq_hat);
-        Q_ = EC_POINT_new(curve);
+        //Q_ = EC_POINT_new(curve);
         A_ = EC_POINT_new(curve);
-        EC_POINT_copy(C2, message->C2);
-        EC_POINT_copy(C2_, message->C2_);
+        // EC_POINT_copy(C2, message->C2);
+        // EC_POINT_copy(C2_, message->C2_);
         EC_POINT_copy(C3, message->C3);
         EC_POINT_copy(C3_, message->C3_);
-        EC_POINT_copy(Q_, message->Q_);
+        //EC_POINT_copy(Q_, message->Q_);
         EC_POINT_copy(A_, message->A_);
     }
 
@@ -721,42 +713,24 @@ public:
         this->user_count_platform = user_count_platform;
         Messages::Msg_P3 msg_p3;
         msg_p3.ParseFromString(message);
-        J = new EC_POINT *[user_count_platform];
         L = new EC_POINT *[user_count_advertiser];
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            J[j] = EC_POINT_deserialize(curve, msg_p3.j(j), ctx);
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {
             L[i] = EC_POINT_deserialize(curve, msg_p3.l(i), ctx);
         }
-        k2_hat = BN_deserialize(msg_p3.k2_hat());
-        C2 = EC_POINT_deserialize(curve, msg_p3.c2(), ctx);
-        C2_ = EC_POINT_deserialize(curve, msg_p3.c2_prime(), ctx);
+        // k2_hat = BN_deserialize(msg_p3.k2_hat());
+        // C2 = EC_POINT_deserialize(curve, msg_p3.c2(), ctx);
+        // C2_ = EC_POINT_deserialize(curve, msg_p3.c2_prime(), ctx);
         C3 = EC_POINT_deserialize(curve, msg_p3.c3(), ctx);
         C3_ = EC_POINT_deserialize(curve, msg_p3.c3_prime(), ctx);
         kq_hat = BN_deserialize(msg_p3.kq_hat());
-        Q_ = EC_POINT_deserialize(curve, msg_p3.q_prime(), ctx);
+        //Q_ = EC_POINT_deserialize(curve, msg_p3.q_prime(), ctx);
         A_ = EC_POINT_deserialize(curve, msg_p3.a_prime(), ctx);
     }
 
     // 释放内存
     ~Message_P3()
     {
-        if (J != nullptr)
-        {
-            for (int j = 0; j < user_count_platform; j++)
-            {
-                if (J[j] != nullptr)
-                {
-                    EC_POINT_free(J[j]);
-                    J[j] = nullptr;
-                }
-            }
-            delete[] J;
-            J = nullptr;
-        }
         if (L != nullptr)
         {
             for (int i = 0; i < user_count_advertiser; i++)
@@ -770,21 +744,21 @@ public:
             delete[] L;
             L = nullptr;
         }
-        if (k2_hat != nullptr)
-        {
-            BN_free(k2_hat);
-            k2_hat = nullptr;
-        }
-        if (C2 != nullptr)
-        {
-            EC_POINT_free(C2);
-            C2 = nullptr;
-        }
-        if (C2_ != nullptr)
-        {
-            EC_POINT_free(C2_);
-            C2_ = nullptr;
-        }
+        // if (k2_hat != nullptr)
+        // {
+        //     BN_free(k2_hat);
+        //     k2_hat = nullptr;
+        // }
+        // if (C2 != nullptr)
+        // {
+        //     EC_POINT_free(C2);
+        //     C2 = nullptr;
+        // }
+        // if (C2_ != nullptr)
+        // {
+        //     EC_POINT_free(C2_);
+        //     C2_ = nullptr;
+        // }
         if (C3 != nullptr)
         {
             EC_POINT_free(C3);
@@ -800,11 +774,11 @@ public:
             BN_free(kq_hat);
             kq_hat = nullptr;
         }
-        if (Q_ != nullptr)
-        {
-            EC_POINT_free(Q_);
-            Q_ = nullptr;
-        }
+        // if (Q_ != nullptr)
+        // {
+        //     EC_POINT_free(Q_);
+        //     Q_ = nullptr;
+        // }
         if (A_ != nullptr)
         {
             EC_POINT_free(A_);
@@ -817,22 +791,18 @@ public:
     {
         BN_CTX_start(ctx);
         size_t size = 0;
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            size += EC_POINT_point2oct(curve, J[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {
-            size += EC_POINT_point2oct(curve, L[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, L[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         }
-        size += BN_bn2mpi(k2_hat, NULL);
-        size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C3, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C3_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        // size += BN_bn2mpi(k2_hat, NULL);
+        // size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        // size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C3, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, C3_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += BN_bn2mpi(kq_hat, NULL);
-        size += EC_POINT_point2oct(curve, Q_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, A_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        //size += EC_POINT_point2oct(curve, Q_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, A_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         BN_CTX_end(ctx);
         return size;
     }
@@ -843,21 +813,17 @@ public:
         BN_CTX_start(ctx);
         std::string output;
         Messages::Msg_P3 msg_p3;
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            msg_p3.add_j(EC_POINT_serialize(curve, J[j], ctx));
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {
             msg_p3.add_l(EC_POINT_serialize(curve, L[i], ctx));
         }
-        msg_p3.set_k2_hat(BN_serialize(k2_hat));
-        msg_p3.set_c2(EC_POINT_serialize(curve, C2, ctx));
-        msg_p3.set_c2_prime(EC_POINT_serialize(curve, C2_, ctx));
+        // msg_p3.set_k2_hat(BN_serialize(k2_hat));
+        // msg_p3.set_c2(EC_POINT_serialize(curve, C2, ctx));
+        // msg_p3.set_c2_prime(EC_POINT_serialize(curve, C2_, ctx));
         msg_p3.set_c3(EC_POINT_serialize(curve, C3, ctx));
         msg_p3.set_c3_prime(EC_POINT_serialize(curve, C3_, ctx));
         msg_p3.set_kq_hat(BN_serialize(kq_hat));
-        msg_p3.set_q_prime(EC_POINT_serialize(curve, Q_, ctx));
+        //msg_p3.set_q_prime(EC_POINT_serialize(curve, Q_, ctx));
         msg_p3.set_a_prime(EC_POINT_serialize(curve, A_, ctx));
         msg_p3.SerializeToString(&output);
         BN_CTX_end(ctx);
@@ -870,12 +836,11 @@ class Message_P3_
 public:
     int user_count_advertiser;
     int user_count_platform;
-    EC_POINT **J = nullptr;
     EC_POINT **L = nullptr;
-    BIGNUM *k2_hat = nullptr;
+    //BIGNUM *k2_hat = nullptr;
     BIGNUM *sk_p_hat = nullptr;
-    EC_POINT *C2 = nullptr;
-    EC_POINT *C2_ = nullptr;
+    //EC_POINT *C2 = nullptr;
+    //EC_POINT *C2_ = nullptr;
     EC_POINT **Ct1_ = nullptr;
     EC_POINT **Ct2_ = nullptr;
     BIGNUM **x_hat_ = nullptr;
@@ -893,7 +858,7 @@ public:
     EC_POINT *pk_p_ = nullptr;
     EC_POINT *pk_p = nullptr;
 
-    EC_POINT *Q_ = nullptr;
+    //EC_POINT *Q_ = nullptr;
     ElGamal_ciphertext **V_ = nullptr;
 
     Message_P3_() {}
@@ -906,7 +871,6 @@ public:
         V_ = new ElGamal_ciphertext *[user_count_advertiser];
         Ct = new ElGamal_ciphertext *[user_count_advertiser];
         Ct_ = new ElGamal_ciphertext *[user_count_advertiser];
-        J = new EC_POINT *[user_count_platform];
         L = new EC_POINT *[user_count_advertiser];
         Ct1_ = new EC_POINT *[user_count_advertiser];
         Ct2_ = new EC_POINT *[user_count_advertiser];
@@ -915,11 +879,6 @@ public:
         CD__ = new EC_POINT *[user_count_advertiser];
         x_hat_ = new BIGNUM * [user_count_advertiser];
         y_hat_ = new BIGNUM * [user_count_advertiser];
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            J[j] = EC_POINT_new(curve);
-            EC_POINT_copy(J[j], message->J[j]);
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {
             V_[i] = new ElGamal_ciphertext(curve, message->V_[i]);
@@ -945,20 +904,20 @@ public:
         F_ = new ElGamal_ciphertext(curve, message->F_);
         F__ = new ElGamal_ciphertext(curve, message->F__);
 
-        k2_hat = BN_dup(message->k2_hat);
+        //k2_hat = BN_dup(message->k2_hat);
         sk_p_hat = BN_dup(message->sk_p_hat);
         E_ = BN_dup(message->E_);
 
-        C2 = EC_POINT_new(curve);
-        C2_ = EC_POINT_new(curve);
-        Q_ = EC_POINT_new(curve);
+        //C2 = EC_POINT_new(curve);
+        //C2_ = EC_POINT_new(curve);
+        //Q_ = EC_POINT_new(curve);
         GSP = EC_POINT_new(curve);
         GSP_ = EC_POINT_new(curve);
         pk_p = EC_POINT_new(curve);
         pk_p_ = EC_POINT_new(curve);
-        EC_POINT_copy(C2, message->C2);
-        EC_POINT_copy(C2_, message->C2_);
-        EC_POINT_copy(Q_, message->Q_);
+        //EC_POINT_copy(C2, message->C2);
+        //EC_POINT_copy(C2_, message->C2_);
+        //EC_POINT_copy(Q_, message->Q_);
         EC_POINT_copy(GSP, message->GSP);
         EC_POINT_copy(GSP_, message->GSP_);
         EC_POINT_copy(pk_p, message->pk_p);
@@ -972,7 +931,6 @@ public:
         this->user_count_platform = user_count_platform;
         Messages::Msg_P3_ msg_p3_;
         msg_p3_.ParseFromString(message);
-        J = new EC_POINT *[user_count_platform];
         L = new EC_POINT *[user_count_advertiser];
         Ct1_ = new EC_POINT *[user_count_advertiser];
         Ct2_ = new EC_POINT *[user_count_advertiser];
@@ -984,10 +942,6 @@ public:
         Ct_ = new ElGamal_ciphertext *[user_count_advertiser];
         x_hat_ = new BIGNUM * [user_count_advertiser];
         y_hat_ = new BIGNUM * [user_count_advertiser];
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            J[j] = EC_POINT_deserialize(curve, msg_p3_.j(j), ctx);
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {   
             Ct[i] = new ElGamal_ciphertext(curve,msg_p3_.ct(i),ctx);
@@ -1006,12 +960,12 @@ public:
         F_ = new ElGamal_ciphertext(curve, msg_p3_.f_(),ctx);
         F__ = new ElGamal_ciphertext(curve, msg_p3_.f_prime_(),ctx);
 
-        k2_hat = BN_deserialize(msg_p3_.k2_hat());
+        //k2_hat = BN_deserialize(msg_p3_.k2_hat());
         sk_p_hat = BN_deserialize(msg_p3_.sk_p_hat());
         E_ = BN_deserialize(msg_p3_.e_());
-        C2 = EC_POINT_deserialize(curve, msg_p3_.c2(), ctx);
-        C2_ = EC_POINT_deserialize(curve, msg_p3_.c2_prime(), ctx);
-        Q_ = EC_POINT_deserialize(curve, msg_p3_.q_prime(), ctx);
+        //C2 = EC_POINT_deserialize(curve, msg_p3_.c2(), ctx);
+        //C2_ = EC_POINT_deserialize(curve, msg_p3_.c2_prime(), ctx);
+        //Q_ = EC_POINT_deserialize(curve, msg_p3_.q_prime(), ctx);
         GSP = EC_POINT_deserialize(curve, msg_p3_.gsp(), ctx);
         GSP_ = EC_POINT_deserialize(curve, msg_p3_.gsp_prime(), ctx);
         pk_p = EC_POINT_deserialize(curve, msg_p3_.pk_p(), ctx);
@@ -1021,19 +975,6 @@ public:
     // 释放内存
     ~Message_P3_()
     {
-        if (J != nullptr)
-        {
-            for (int j = 0; j < user_count_platform; j++)
-            {
-                if (J[j] != nullptr)
-                {
-                    EC_POINT_free(J[j]);
-                    J[j] = nullptr;
-                }
-            }
-            delete[] J;
-            J = nullptr;
-        }
         if (L != nullptr)
         {
             for (int i = 0; i < user_count_advertiser; i++)
@@ -1187,11 +1128,11 @@ public:
             delete F__;
             F__ = nullptr;
         }
-        if (k2_hat != nullptr)
-        {
-            BN_free(k2_hat);
-            k2_hat = nullptr;
-        }
+        // if (k2_hat != nullptr)
+        // {
+        //     BN_free(k2_hat);
+        //     k2_hat = nullptr;
+        // }
         if (sk_p_hat != nullptr)
         {
             BN_free(sk_p_hat);
@@ -1202,21 +1143,21 @@ public:
             BN_free(E_);
             E_ = nullptr;
         }
-        if (C2 != nullptr)
-        {
-            EC_POINT_free(C2);
-            C2 = nullptr;
-        }
-        if (C2_ != nullptr)
-        {
-            EC_POINT_free(C2_);
-            C2_ = nullptr;
-        }
-        if (Q_ != nullptr)
-        {
-            EC_POINT_free(Q_);
-            Q_ = nullptr;
-        }
+        // if (C2 != nullptr)
+        // {
+        //     EC_POINT_free(C2);
+        //     C2 = nullptr;
+        // }
+        // if (C2_ != nullptr)
+        // {
+        //     EC_POINT_free(C2_);
+        //     C2_ = nullptr;
+        // }
+        // if (Q_ != nullptr)
+        // {
+        //     EC_POINT_free(Q_);
+        //     Q_ = nullptr;
+        // }
         if (GSP != nullptr)
         {
             EC_POINT_free(GSP);
@@ -1244,10 +1185,6 @@ public:
     {
         BN_CTX_start(ctx);
         size_t size = 0;
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            size += EC_POINT_point2oct(curve, J[j], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {   
             size += V_[i]->get_size(curve, ctx);
@@ -1255,25 +1192,25 @@ public:
             size += Ct_[i]->get_size(curve, ctx);
             size += BN_bn2mpi(x_hat_[i], NULL);
             size += BN_bn2mpi(y_hat_[i], NULL);
-            size += EC_POINT_point2oct(curve, L[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, Ct1_[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, Ct2_[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, CA_[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, CB_[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-            size += EC_POINT_point2oct(curve, CD__[i], POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, L[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, Ct1_[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, Ct2_[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CA_[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CB_[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+            size += EC_POINT_point2oct(curve, CD__[i], POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         }
         size += F_->get_size(curve, ctx);
         size += F__->get_size(curve, ctx);
-        size += BN_bn2mpi(k2_hat, NULL);
+        //size += BN_bn2mpi(k2_hat, NULL);
         size += BN_bn2mpi(sk_p_hat, NULL);
         size += BN_bn2mpi(E_, NULL);
-        size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, Q_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, GSP, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, GSP_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, pk_p, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, pk_p_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        //size += EC_POINT_point2oct(curve, C2, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        //size += EC_POINT_point2oct(curve, C2_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        //size += EC_POINT_point2oct(curve, Q_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GSP, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GSP_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, pk_p, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, pk_p_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         BN_CTX_end(ctx);
         return size;
     }
@@ -1284,10 +1221,6 @@ public:
         BN_CTX_start(ctx);
         std::string output;
         Messages::Msg_P3_ msg_p3_;
-        for (int j = 0; j < user_count_platform; j++)
-        {
-            msg_p3_.add_j(EC_POINT_serialize(curve, J[j], ctx));
-        }
         for (int i = 0; i < user_count_advertiser; i++)
         {
             msg_p3_.add_l(EC_POINT_serialize(curve, L[i], ctx));
@@ -1304,12 +1237,12 @@ public:
         }
         F_->insert(curve, msg_p3_.mutable_f_(), ctx);
         F__->insert(curve, msg_p3_.mutable_f_prime_(), ctx);
-        msg_p3_.set_k2_hat(BN_serialize(k2_hat));
+        //msg_p3_.set_k2_hat(BN_serialize(k2_hat));
         msg_p3_.set_e_(BN_serialize(E_));
         msg_p3_.set_sk_p_hat(BN_serialize(sk_p_hat));
-        msg_p3_.set_c2(EC_POINT_serialize(curve, C2, ctx));
-        msg_p3_.set_c2_prime(EC_POINT_serialize(curve, C2_, ctx));
-        msg_p3_.set_q_prime(EC_POINT_serialize(curve, Q_, ctx));
+        //msg_p3_.set_c2(EC_POINT_serialize(curve, C2, ctx));
+        //msg_p3_.set_c2_prime(EC_POINT_serialize(curve, C2_, ctx));
+        //msg_p3_.set_q_prime(EC_POINT_serialize(curve, Q_, ctx));
         msg_p3_.set_gsp(EC_POINT_serialize(curve, GSP, ctx));
         msg_p3_.set_gsp_prime(EC_POINT_serialize(curve, GSP_, ctx));
         msg_p3_.set_pk_p(EC_POINT_serialize(curve, pk_p, ctx));
@@ -1406,9 +1339,9 @@ public:
             size += BN_bn2mpi(Sum, NULL);
         }
         size += Sum_E->get_size(curve, ctx);
-        size += EC_POINT_point2oct(curve, GK, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, GK_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, pkA__, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GK, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GK_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, pkA__, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += BN_bn2mpi(skA_hat_, NULL);
         BN_CTX_end(ctx);
         return size;
@@ -1526,9 +1459,9 @@ public:
             size += BN_bn2mpi(Sum, NULL);
         }
         size += Sum_E->get_size(curve, ctx);
-        size += EC_POINT_point2oct(curve, GK, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, GK_, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
-        size += EC_POINT_point2oct(curve, pkA__, POINT_CONVERSION_UNCOMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GK, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, GK_, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
+        size += EC_POINT_point2oct(curve, pkA__, POINT_CONVERSION_COMPRESSED, NULL, 0, ctx);
         size += BN_bn2mpi(skA_hat_, NULL);
         BN_CTX_end(ctx);
         return size;
