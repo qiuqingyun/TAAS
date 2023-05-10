@@ -473,29 +473,8 @@ public:
         // 选择随机数 k2'，kq'
         //BIGNUM *k2_ = BN_rand(256);
         BIGNUM *kq_ = BN_rand(256);
-        // 选择m个随机数 {b1,b2,...,bm}
-        //BIGNUM **b = new BIGNUM *[user_count_platform];
         // 选择n个随机数{c1,c2,...,cn}
         BIGNUM **c = new BIGNUM *[user_count_advertiser];
-        // 设置 Q'=0
-        //message_p3->Q_ = EC_POINT_new(w1->get_curve());
-// 并行化
-// #pragma omp parallel for
-//         for (int j = 0; j < user_count_platform; ++j)
-//         {
-//             BN_CTX *temp_ctx = BN_CTX_new();
-//             b[j] = BN_rand(256);
-//             // 计算 Q' = Q' + bj*Qj
-//             EC_POINT *temp = EC_POINT_new(w1->get_curve());
-//             EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->Q[j], b[j], temp_ctx);
-// // 线程安全
-// #pragma omp critical
-//             // 累加 Q'
-//             EC_POINT_add(w1->get_curve(), message_p3->Q_, message_p3->Q_, temp, temp_ctx);
-//             // 释放内存
-//             EC_POINT_free(temp);
-//             BN_CTX_free(temp_ctx);
-//         }
         // 设置 A'=0
         message_p3->A_ = EC_POINT_new(w1->get_curve());
         // 保存向量L

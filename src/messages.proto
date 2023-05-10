@@ -102,7 +102,7 @@ message Msg_P3{
     bytes C3 = 6;
     bytes C3_prime = 7;
     bytes kq_hat = 8;
-    bytes Q_prime = 9;
+    //bytes Q_prime = 9;
     bytes A_prime = 10;
 }
 message Msg_P3_{
@@ -153,7 +153,7 @@ message Msg_P3_{
     bytes GSP_prime = 20;
     bytes pk_p_prime = 21;
     bytes pk_p = 22;
-    bytes Q_prime = 23;
+    //bytes Q_prime = 23;
     repeated Msg_ElGamal_ciphertext V_ = 24;
 }
 
