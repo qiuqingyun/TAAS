@@ -471,31 +471,31 @@ public:
             BN_free(E_);
         }
         // 选择随机数 k2'，kq'
-        BIGNUM *k2_ = BN_rand(256);
+        //BIGNUM *k2_ = BN_rand(256);
         BIGNUM *kq_ = BN_rand(256);
         // 选择m个随机数 {b1,b2,...,bm}
-        BIGNUM **b = new BIGNUM *[user_count_platform];
+        //BIGNUM **b = new BIGNUM *[user_count_platform];
         // 选择n个随机数{c1,c2,...,cn}
         BIGNUM **c = new BIGNUM *[user_count_advertiser];
         // 设置 Q'=0
-        message_p3->Q_ = EC_POINT_new(w1->get_curve());
+        //message_p3->Q_ = EC_POINT_new(w1->get_curve());
 // 并行化
-#pragma omp parallel for
-        for (int j = 0; j < user_count_platform; ++j)
-        {
-            BN_CTX *temp_ctx = BN_CTX_new();
-            b[j] = BN_rand(256);
-            // 计算 Q' = Q' + bj*Qj
-            EC_POINT *temp = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->Q[j], b[j], temp_ctx);
-// 线程安全
-#pragma omp critical
-            // 累加 Q'
-            EC_POINT_add(w1->get_curve(), message_p3->Q_, message_p3->Q_, temp, temp_ctx);
-            // 释放内存
-            EC_POINT_free(temp);
-            BN_CTX_free(temp_ctx);
-        }
+// #pragma omp parallel for
+//         for (int j = 0; j < user_count_platform; ++j)
+//         {
+//             BN_CTX *temp_ctx = BN_CTX_new();
+//             b[j] = BN_rand(256);
+//             // 计算 Q' = Q' + bj*Qj
+//             EC_POINT *temp = EC_POINT_new(w1->get_curve());
+//             EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->Q[j], b[j], temp_ctx);
+// // 线程安全
+// #pragma omp critical
+//             // 累加 Q'
+//             EC_POINT_add(w1->get_curve(), message_p3->Q_, message_p3->Q_, temp, temp_ctx);
+//             // 释放内存
+//             EC_POINT_free(temp);
+//             BN_CTX_free(temp_ctx);
+//         }
         // 设置 A'=0
         message_p3->A_ = EC_POINT_new(w1->get_curve());
         // 保存向量L
@@ -538,14 +538,9 @@ public:
         message_p3->kq_hat = BN_new();
         BN_mod_mul(message_p3->kq_hat, ta, kq, w1->get_order(), ctx);
         BN_mod_add(message_p3->kq_hat, message_p3->kq_hat, kq_, w1->get_order(), ctx);
-        // 释放k2_,kq_,b,c,tq,kq,ta的内存
-        BN_free(k2_);
+        // 释放kq_,b,c,tq,kq,ta的内存
         BN_free(kq_);
-        for (int j = 0; j < user_count_platform; ++j)
-        {
-            BN_free(b[j]);
-        }
-        delete[] b;
+
         for (int j = 0; j < user_count_advertiser; ++j)
         {
             BN_free(c[j]);
@@ -749,31 +744,29 @@ public:
             BN_free(E_);
         }
         // 选择随机数 k2'，kq'
-        BIGNUM *k2_ = BN_rand(256);
+        //BIGNUM *k2_ = BN_rand(256);
         BIGNUM *kq_ = BN_rand(256);
-        // 选择m个随机数 {b1,b2,...,bm}
-        BIGNUM **b = new BIGNUM *[user_count_platform];
-        // 选择n个随机数{c1,c2,...,cn}
-        BIGNUM **c = new BIGNUM *[user_count_advertiser];
-        // 设置 Q'=0
-        message_p3_->Q_ = EC_POINT_new(w1->get_curve());
-// 并行化
-#pragma omp parallel for
-        for (int j = 0; j < user_count_platform; ++j)
-        {
-            BN_CTX *temp_ctx = BN_CTX_new();
-            b[j] = BN_rand(256);
-            // 计算 Q' = Q' + bj*Qj
-            EC_POINT *temp = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->Q[j], b[j], temp_ctx);
-// 线程安全
-#pragma omp critical
-            // 累加 Q'
-            EC_POINT_add(w1->get_curve(), message_p3_->Q_, message_p3_->Q_, temp, temp_ctx);
-            // 释放内存
-            EC_POINT_free(temp);
-            BN_CTX_free(temp_ctx);
-        }
+//        // 选择m个随机数 {b1,b2,...,bm}
+//        BIGNUM **b = new BIGNUM *[user_count_platform];
+//         // 设置 Q'=0
+//         message_p3_->Q_ = EC_POINT_new(w1->get_curve());
+// // 并行化
+// #pragma omp parallel for
+//         for (int j = 0; j < user_count_platform; ++j)
+//         {
+//             BN_CTX *temp_ctx = BN_CTX_new();
+//             b[j] = BN_rand(256);
+//             // 计算 Q' = Q' + bj*Qj
+//             EC_POINT *temp = EC_POINT_new(w1->get_curve());
+//             EC_POINT_mul(w1->get_curve(), temp, NULL, message_a2->Q[j], b[j], temp_ctx);
+// // 线程安全
+// #pragma omp critical
+//             // 累加 Q'
+//             EC_POINT_add(w1->get_curve(), message_p3_->Q_, message_p3_->Q_, temp, temp_ctx);
+//             // 释放内存
+//             EC_POINT_free(temp);
+//             BN_CTX_free(temp_ctx);
+//         }
 
 
         /*开始与round_P3不同*/
@@ -1101,25 +1094,23 @@ public:
         BN_free(x_);
         BN_free(y_);
         BN_free(z_);
-        BN_free(k2_);
+        //BN_free(k2_);
         BN_free(kq_);
         BN_free(tp_h);
-        for (int j = 0; j < user_count_platform; ++j)
-        {
-            BN_free(b[j]);
-        }
-        delete[] b;
+        // for (int j = 0; j < user_count_platform; ++j)
+        // {
+        //     BN_free(b[j]);
+        // }
+        // delete[] b;
         
         for (int i = 0; i < user_count_advertiser; ++i)
         {
-            //BN_free(c[i]);
             BN_free(s_[i]);
             BN_free(t_[i]);
             BN_free(B_[i]);
             BN_free(delta[i]);
             BN_free(alpha[i]);
         }
-        //delete[] c;
         delete[] s_;
         delete[] t_;
         delete[] B_;

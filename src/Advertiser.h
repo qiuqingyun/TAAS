@@ -23,6 +23,7 @@ class Advertiser
     EC_POINT **A = nullptr;
     std::unordered_map<std::string, Messages::Msg_ElGamal_ciphertext> *A_V = nullptr;
     BIGNUM *skA_ = nullptr;
+    //EC_POINT **Q;
     ElGamal_ciphertext **V;
     Message_P1 *message_p1 = nullptr;
     Message_P3 *message_p3 = nullptr;
@@ -516,6 +517,7 @@ public:
         BN_mod_sub(rho_, w1->get_order(), rho_, w1->get_order(), ctx);
         // 保存向量 Q
         message_a2->Q = new EC_POINT *[user_count_platform];
+        //Q = new EC_POINT *[user_count_platform];
         // 计算 F = (⍴'*pkA, ⍴'*Ha) + B1*C1' + B2*C2' + ... + Bm*Cm'
         message_a2->F = new ElGamal_ciphertext(w1->get_curve(), w1->get_pkA(), w1->get_Ha());
         ElGamal_mul(w1->get_curve(), message_a2->F, message_a2->F, rho_, ctx);
