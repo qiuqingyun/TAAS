@@ -594,26 +594,12 @@ public:
         message_a4 = new Message_A4();
         // 验证上一轮的计算
         {
-            // 计算 tq=H(W1||C2')
-            BIGNUM *tq = BN_hash(
-                w1->to_string(ctx),
-                EC_POINT_to_string(w1->get_curve(), message_p3->C2_, ctx));
             // 计算 ta=H(W1||C3')
             BIGNUM *ta = BN_hash(
                 w1->to_string(ctx),
                 EC_POINT_to_string(w1->get_curve(), message_p3->C3_, ctx));
-            // 验证 k2_hat*Q' = tq*C2 + C2'
             EC_POINT *left = EC_POINT_new(w1->get_curve());
             EC_POINT *right = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), left, NULL, message_p3->Q_, message_p3->k2_hat, ctx);
-            EC_POINT_mul(w1->get_curve(), right, NULL, message_p3->C2, tq, ctx);
-            EC_POINT_add(w1->get_curve(), right, right, message_p3->C2_, ctx);
-            if (EC_POINT_cmp(w1->get_curve(), left, right, ctx) != 0)
-            {
-                std::cout << "failed: A4" << std::endl;
-                std::cout << "A4: k2_hat*Q' != tq*C2 + C2'" << std::endl;
-                return 1;
-            }
             // 验证 kq_hat*A' = ta*C3 + C3'
             EC_POINT_mul(w1->get_curve(), left, NULL, message_p3->A_, message_p3->kq_hat, ctx);
             EC_POINT_mul(w1->get_curve(), right, NULL, message_p3->C3, ta, ctx);
@@ -625,7 +611,6 @@ public:
                 return 1;
             }
             // 释放内存
-            BN_free(tq);
             BN_free(ta);
             EC_POINT_free(left);
             EC_POINT_free(right);
@@ -637,7 +622,7 @@ public:
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
-            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message_p3->J[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message_a2->Q[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
             X[j] = temp_J;
             // 释放内存
             OPENSSL_free(temp_J);
@@ -750,23 +735,9 @@ public:
         message_a4_ = new Message_A4_();
         // 验证上一轮的计算
         {
-            // 计算 tq=H(W1||C2')
-            BIGNUM *tq = BN_hash(
-                w1->to_string(ctx),
-                EC_POINT_to_string(w1->get_curve(), message_p3_->C2_, ctx));
-           
             // 验证 k2_hat*Q' = tq*C2 + C2'
             EC_POINT *left = EC_POINT_new(w1->get_curve());
             EC_POINT *right = EC_POINT_new(w1->get_curve());
-            EC_POINT_mul(w1->get_curve(), left, NULL, message_p3_->Q_, message_p3_->k2_hat, ctx);
-            EC_POINT_mul(w1->get_curve(), right, NULL, message_p3_->C2, tq, ctx);
-            EC_POINT_add(w1->get_curve(), right, right, message_p3_->C2_, ctx);
-            if (EC_POINT_cmp(w1->get_curve(), left, right, ctx) != 0)
-            {
-                std::cout << "failed: A4" << std::endl;
-                std::cout << "A4: k2_hat*Q' != tq*C2 + C2'" << std::endl;
-                return 1;
-            }
             bool result_Ai = true;
             bool result_Ha = true;
 #pragma omp parallel for           
@@ -969,7 +940,6 @@ public:
                 //return 1;
             }
             // 释放内存
-            BN_free(tq);
             BN_free(tp_h);
             EC_POINT_free(left);
             EC_POINT_free(right);
@@ -982,7 +952,7 @@ public:
         for (int j = 0; j < user_count_platform; ++j)
         {
             BN_CTX *temp_ctx = BN_CTX_new();
-            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message_p3_->J[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
+            char *temp_J = EC_POINT_point2hex(w1->get_curve(), message_a2->Q[j], POINT_CONVERSION_COMPRESSED, temp_ctx);
             X[j] = temp_J;
             // 释放内存
             OPENSSL_free(temp_J);
